@@ -52,13 +52,19 @@ __device__ fptype fsFun(double s, double m2, double gam, double daug2Mass, doubl
 __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, ParameterContainer &pc) {
     unsigned int spin         = pc.getConstant(0);
     unsigned int cyclic_index = pc.getConstant(1);
+    bool sym = pc.getConstant(2);
 
     fptype resmass  = pc.getParameter(0);
     fptype reswidth = pc.getParameter(1);
+    
+    fpcomplex ret(0.0,0.0);
+   
+    #pragma unroll
+    for(int i = 0; i < (1+sym); i++) {
 
-    fptype rMassSq  = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
-    fptype frFactor = 1;
-
+        fptype rMassSq  = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
+        fptype frFactor = 1;
+    
     resmass *= resmass;
     // Calculate momentum of the two daughters in the resonance rest frame; note symmetry under interchange (dm1 <->
     // dm2).
@@ -85,12 +91,23 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, ParameterContain
     retur *= sqrt(frFactor);
     retur *= spinFactor(spin, c_motherMass, c_daug1Mass, c_daug2Mass, c_daug3Mass, m12, m13, m23, cyclic_index);
 
-    pc.incrementIndex(1, 2, 2, 0, 1);
+    ret += retur;
 
-    return retur;
+    if(sym) {
+        fptype swpmass = m12;
+        m12            = m13;
+        m13            = swpmass;
+    }
+
+    }   
+
+    pc.incrementIndex(1, 2, 3, 0, 1);
+
+    return ret;
 }
 
 __device__ resonance_function_ptr ptr_to_GOUSAK = gouSak;
+
 
 namespace Resonances {
 
@@ -108,8 +125,10 @@ GS::GS(std::string name,
 
     registerConstant(sp);
     registerConstant(cyc);
+    registerConstant(sym);
 
     registerFunction("ptr_to_GOUSAK", ptr_to_GOUSAK);
+    
 }
 
 } // namespace Resonances

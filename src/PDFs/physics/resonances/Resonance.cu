@@ -1,7 +1,16 @@
 #include <goofit/PDFs/physics/resonances/Resonance.h>
 
 namespace GooFit {
-
+    
+    __device__ fptype twoBodyCMmom(double rMassSq, fptype d1m, fptype d2m, fptype mR) {
+        fptype x = rMassSq;
+        fptype y = d1m * d1m;
+        fptype z = d2m * d2m;
+        double l = POW2(x - y - z) - 4 * y * z;
+    
+        return sqrt(l) / (2 * mR);
+    }
+    
 __device__ fptype twoBodyCMmom(double rMassSq, fptype d1m, fptype d2m) {
     // For A -> B + C, calculate momentum of B and C in rest frame of A.
     // PDG 38.16.

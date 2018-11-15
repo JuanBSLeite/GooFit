@@ -64,6 +64,7 @@ goofit_add_pdf_library(PDFPhysics
     resonances/NonRes.cu
     resonances/RBW.cu
     resonances/Spline.cu
+    resonances/Heaviside.cu
     ${GOOFIT_PHYSICS_HEADERS}
 )
 
