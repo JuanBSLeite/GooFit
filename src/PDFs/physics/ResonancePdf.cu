@@ -392,7 +392,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
     // indices[1] is unused constant index, for consistency with other function types.
     fptype resmass            = cudaArray[indices[2]];
     fptype g1                 = cudaArray[indices[3]];
-    fptype g2                 = cudaArray[indices[4]];
+    fptype g2                 = cudaArray[indices[4]]*g1;
     unsigned int cyclic_index = indices[5];
     unsigned int doSwap       = indices[6];
 
