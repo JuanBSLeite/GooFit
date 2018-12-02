@@ -521,6 +521,72 @@ __device__ fpcomplex cubicspline(fptype m12, fptype m13, fptype m23, unsigned in
     return ret;
 }
 
+
+    __device__ fpcomplex Bes(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
+        fpcomplex ret(0, 0);
+        unsigned int cyclic_index        = indices[2];
+        unsigned int doSwap              = indices[3];
+        const unsigned int nKnobs        = indices[4];
+        unsigned int idx                 = 5; // Next index
+        unsigned int i                   = 0;
+        const unsigned int pwa_coefs_idx = idx;
+        idx += 2 * nKnobs;
+        const fptype *mKKlimits = &(functorConstants[indices[idx]]);
+        fptype mAB = m12, mAC = m13;
+        switch(cyclic_index) {
+            case PAIR_13:
+                mAB = m13;
+                mAC = m12;
+                break;
+            case PAIR_23:
+                mAB = m23;
+                mAC = m12;
+                break;
+        }
+
+        int khiAB = 0, khiAC = 0;
+        fptype dmKK, aa, bb;
+        unsigned int timestorun = 1 + doSwap;
+        while(khiAB < nKnobs) {
+            if(mAB < mKKlimits[khiAB])
+                break;
+            khiAB++;
+        }
+
+        if(khiAB <= 0 || khiAB == nKnobs)
+            timestorun = 0;
+        while(khiAC < nKnobs) {
+            if(mAC < mKKlimits[khiAC])
+                break;
+            khiAC++;
+        }
+
+        if(khiAC <= 0 || khiAC == nKnobs)
+            timestorun = 0;
+
+        for(i = 0; i < timestorun; i++) {
+            unsigned int kloAB                = khiAB - 1; //, kloAC = khiAC -1;
+            unsigned int twokloAB             = kloAB + kloAB;
+            unsigned int twokhiAB             = khiAB + khiAB;
+            fptype pwa_coefs_real_kloAB       = cudaArray[indices[pwa_coefs_idx + twokloAB]];
+            fptype pwa_coefs_real_khiAB       = cudaArray[indices[pwa_coefs_idx + twokhiAB]];
+            fptype pwa_coefs_imag_kloAB       = cudaArray[indices[pwa_coefs_idx + twokloAB + 1]];
+            fptype pwa_coefs_imag_khiAB       = cudaArray[indices[pwa_coefs_idx + twokhiAB + 1]];
+
+
+            dmKK = mKKlimits[khiAB] - mKKlimits[kloAB];
+            aa   = (mKKlimits[khiAB] - mAB) / dmKK;
+            bb   = 1 - aa;
+
+            ret.real(ret.real() + aa*pwa_coefs_real_kloAB  + bb*pwa_coefs_real_khiAB);
+            ret.imag(ret.imag() + aa*pwa_coefs_imag_kloAB + bb*pwa_coefs_imag_khiAB);
+
+            khiAB = khiAC;
+            mAB   = mAC;
+        }
+        return ret;
+    }
+
 __device__ resonance_function_ptr ptr_to_RBW      = plainBW<1>;
 __device__ resonance_function_ptr ptr_to_RBW_SYM  = plainBW<2>;
 __device__ resonance_function_ptr ptr_to_GOUSAK   = gouSak<1>;
@@ -530,6 +596,7 @@ __device__ resonance_function_ptr ptr_to_NONRES   = nonres;
 __device__ resonance_function_ptr ptr_to_LASS     = lass;
 __device__ resonance_function_ptr ptr_to_FLATTE   = flatte;
 __device__ resonance_function_ptr ptr_to_SPLINE   = cubicspline;
+__device__ resonance_function_ptr ptr_to_BES   = Bes;
 
 namespace Resonances {
 
@@ -685,6 +752,42 @@ __host__ void Spline::recalculateCache() const {
 
     MEMCPY_TO_SYMBOL(cDeriatives, y2_flat.data(), 2 * nKnobs * sizeof(fptype), 0, cudaMemcpyHostToDevice);
 }
+
+Bes::Bes(std::string name,
+                   Variable ar,
+                   Variable ai,
+                   std::vector<fptype> &HH_bin_limits,
+                   std::vector<Variable> &pwa_coefs_reals,
+                   std::vector<Variable> &pwa_coefs_imags,
+                   unsigned int cyc,
+                   bool symmDP)
+            : ResonancePdf(name, ar, ai) {
+        std::vector<unsigned int> pindices;
+        const unsigned int nKnobs = HH_bin_limits.size();
+        host_constants.resize(nKnobs);
+
+        pindices.push_back(0);
+        pindices.push_back(cyc);
+        pindices.push_back((unsigned int)symmDP);
+        pindices.push_back(nKnobs);
+
+        for(int i = 0; i < pwa_coefs_reals.size(); i++) {
+            host_constants[i] = HH_bin_limits[i];
+            pindices.push_back(registerParameter(pwa_coefs_reals[i]));
+            pindices.push_back(registerParameter(pwa_coefs_imags[i]));
+        }
+        pindices.push_back(registerConstants(nKnobs));
+
+        MEMCPY_TO_SYMBOL(functorConstants,
+                         host_constants.data(),
+                         nKnobs * sizeof(fptype),
+                         cIndex * sizeof(fptype),
+                         cudaMemcpyHostToDevice);
+
+        GET_FUNCTION_ADDR(ptr_to_BES);
+
+        initialize(pindices);
+    }
 
 } // namespace Resonances
 

@@ -136,6 +136,22 @@ class Spline : public ResonancePdf {
     /// Recacluate the CACHE values before running
     __host__ void recalculateCache() const override;
 };
+
+//Bes
+class Bes : public ResonancePdf {
+    public:
+        Bes(std::string name,
+               Variable ar,
+               Variable ai,
+               std::vector<fptype> &HH_bin_limits,
+               std::vector<Variable> &pwa_coefs_reals,
+               std::vector<Variable> &pwa_coefs_imags,
+               unsigned int cyc,
+               bool symmDP = false);
+        ~Bes() override = default;
+
+    };
+
 } // namespace Resonances
 
 } // namespace GooFit
