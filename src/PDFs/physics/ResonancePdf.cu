@@ -305,6 +305,9 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
     return ret;
 }
 
+
+
+
 __device__ fpcomplex lass(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
     fptype motherMass   = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 0]);
     fptype daug1Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 1]);
@@ -377,6 +380,16 @@ __device__ fpcomplex lass(fptype m12, fptype m13, fptype m23, unsigned int *indi
 }
 
 __device__ fpcomplex nonres(fptype m12, fptype m13, fptype m23, unsigned int *indices) { return {1., 0.}; }
+
+__device__ fpcomplex BE(fptype m12, fptype m13, fptype m23,unsigned int *indices){
+
+    fptype pi_MASS  = 0.13957018;
+    fptype Q = sqrt(m23 - 4*(pi_MASS*pi_MASS));
+    fptype Omega = exp(-Q*1.9);
+
+    return fpcomplex(Omega,0.);
+
+}
 
 __device__ void
 getAmplitudeCoefficients(fpcomplex a1, fpcomplex a2, fptype &a1sq, fptype &a2sq, fptype &a1a2real, fptype &a1a2imag) {
@@ -597,6 +610,7 @@ __device__ resonance_function_ptr ptr_to_LASS     = lass;
 __device__ resonance_function_ptr ptr_to_FLATTE   = flatte;
 __device__ resonance_function_ptr ptr_to_SPLINE   = cubicspline;
 __device__ resonance_function_ptr ptr_to_BES   = Bes;
+__device__ resonance_function_ptr ptr_to_BoseEinstein = BE;
 
 namespace Resonances {
 
@@ -651,6 +665,16 @@ LASS::LASS(std::string name, Variable ar, Variable ai, Variable mass, Variable w
     GET_FUNCTION_ADDR(ptr_to_LASS);
 
     initialize(pindices);
+}
+
+BoseEinstein::BoseEinstein(std::string name,Variable ar, Variable ai)
+    : ResonancePdf(name, ar, ai) {
+   
+    GET_FUNCTION_ADDR(ptr_to_BoseEinstein);
+
+    initialize(pindices);
+
+    
 }
 
 // Constructor for regular BW,Gounaris-Sakurai,LASS

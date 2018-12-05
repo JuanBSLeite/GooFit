@@ -85,6 +85,8 @@ class LASS : public ResonancePdf {
     ~LASS() override = default;
 };
 
+
+
 /// Gounaris-Sakurai
 class GS : public ResonancePdf {
   public:
@@ -118,6 +120,12 @@ class NonRes : public ResonancePdf {
   public:
     NonRes(std::string name, Variable ar, Variable ai);
     ~NonRes() override = default;
+};
+
+class BoseEinstein : public ResonancePdf {
+  public:
+   BoseEinstein(std::string name, Variable ar, Variable ai );
+    ~BoseEinstein() override = default;
 };
 
 /// Cubic spline constructor
