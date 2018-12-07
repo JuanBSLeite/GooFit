@@ -124,7 +124,7 @@ class NonRes : public ResonancePdf {
 
 class BoseEinstein : public ResonancePdf {
   public:
-   BoseEinstein(std::string name, Variable ar, Variable ai );
+   BoseEinstein(std::string name, Variable ar, Variable ai, Variable coef );
     ~BoseEinstein() override = default;
 };
 

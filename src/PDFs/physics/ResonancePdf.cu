@@ -166,16 +166,16 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
 
         // RBW evaluation
         fptype A = (resmassSq - rMassSq);
-        fptype B = resmassSq * reswidth /* * pow(measureDaughterMoms / nominalDaughterMoms, 2.0 * spin + 1) * frFactor
-                   / sqrt(rMassSq) */ ;
+        fptype B = resmassSq * reswidth  * pow(measureDaughterMoms / nominalDaughterMoms, 2.0 * spin + 1) * frFactor
+                   / sqrt(rMassSq)  ;
         fptype C = 1.0 / (A * A + B * B);
         fpcomplex retur(A * C, B * C); // Dropping F_D=1
 
-        //retur *= sqrt(frFactor * fdFactor);
-        //fptype spinF = spinFactor(spin, motherMass, daug1Mass, daug2Mass, daug3Mass, m12, m13, m23, cyclic_index);
+        retur *= sqrt(frFactor * fdFactor);
+        fptype spinF = spinFactor(spin, motherMass, daug1Mass, daug2Mass, daug3Mass, m12, m13, m23, cyclic_index);
         //  fptype spinF = spinFactor(spin, motherMass, daug1Mass, daug2Mass, daug3Mass, m12, m13, m23, cyclic_index,
         //  resmass);
-        //retur *= spinF;
+        retur *= spinF;
         ret += retur;
         if(I != 0) {
             fptype swpmass = m12;
@@ -383,9 +383,11 @@ __device__ fpcomplex nonres(fptype m12, fptype m13, fptype m23, unsigned int *in
 
 __device__ fpcomplex BE(fptype m12, fptype m13, fptype m23,unsigned int *indices){
 
-    fptype pi_MASS  = 0.13957018;
-    fptype Q = sqrt(m23 - 4*(pi_MASS*pi_MASS));
-    fptype Omega = exp(-Q*1.9);
+     
+    fptype coef            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
+    const fptype mpisq = 0.01947977;
+    fptype Q = sqrt(m23 - 4*mpisq);
+    fptype Omega = exp(-Q*coef);
 
     return fpcomplex(Omega,0.);
 
@@ -667,9 +669,9 @@ LASS::LASS(std::string name, Variable ar, Variable ai, Variable mass, Variable w
     initialize(pindices);
 }
 
-BoseEinstein::BoseEinstein(std::string name,Variable ar, Variable ai)
+BoseEinstein::BoseEinstein(std::string name,Variable ar, Variable ai, Variable coef)
     : ResonancePdf(name, ar, ai) {
-   
+    pindices.push_back(registerParameter(coef));
     GET_FUNCTION_ADDR(ptr_to_BoseEinstein);
 
     initialize(pindices);
