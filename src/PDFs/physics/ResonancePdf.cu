@@ -166,16 +166,16 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
 
         // RBW evaluation
         fptype A = (resmassSq - rMassSq);
-        fptype B = resmassSq * reswidth  * pow(measureDaughterMoms / nominalDaughterMoms, 2.0 * spin + 1) * frFactor
-                   / sqrt(rMassSq)  ;
+        fptype B = resmassSq * reswidth  /** pow(measureDaughterMoms / nominalDaughterMoms, 2.0 * spin + 1) * frFactor
+                   / sqrt(rMassSq)  */;
         fptype C = 1.0 / (A * A + B * B);
         fpcomplex retur(A * C, B * C); // Dropping F_D=1
 
-        retur *= sqrt(frFactor * fdFactor);
-        fptype spinF = spinFactor(spin, motherMass, daug1Mass, daug2Mass, daug3Mass, m12, m13, m23, cyclic_index);
+        //retur *= sqrt(frFactor * fdFactor);
+        //fptype spinF = spinFactor(spin, motherMass, daug1Mass, daug2Mass, daug3Mass, m12, m13, m23, cyclic_index);
         //  fptype spinF = spinFactor(spin, motherMass, daug1Mass, daug2Mass, daug3Mass, m12, m13, m23, cyclic_index,
         //  resmass);
-        retur *= spinF;
+        //retur *= spinF;
         ret += retur;
         if(I != 0) {
             fptype swpmass = m12;
@@ -407,7 +407,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
     // indices[1] is unused constant index, for consistency with other function types.
     fptype resmass            = cudaArray[indices[2]];
     fptype g1                 = cudaArray[indices[3]];
-    fptype g2                 = cudaArray[indices[4]]*g1;
+    fptype g2                 = cudaArray[indices[4]];
     unsigned int cyclic_index = indices[5];
     unsigned int doSwap       = indices[6];
 
