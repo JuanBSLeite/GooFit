@@ -29,14 +29,41 @@ __device__ fptype twoBodyCMmom(fptype rMassSq, fptype d1m, fptype d2m) {
     return 0.5 * sqrt(rMassSq) * kin1 * kin2;
 }
 
-/* __device__ fptype twoBodyCMmom(double rMassSq, fptype d1m, fptype d2m, fptype mR) {
-    fptype x = rMassSq;
-    fptype y = d1m * d1m;
-    fptype z = d2m * d2m;
-    double l = POW2(x - y - z) - 4 * y * z;
+//Young, Grace. (2011). New Package for RooFit Supporting Dalitz Analysis: RooAmplitudes. 10.13140/RG.2.2.17128.37124. 
+__device__ fptype BWF(double q, double q0, int spin){
 
-    return sqrt(l) / (2 * mR);
-} */
+    double B = 0;
+    double R = 3; // constant Barrior Factor , default value 3GeV^{-1}
+
+    if(spin == 0){
+        B = 1;
+    }
+
+    if(spin ==1 ){
+        double n = 1 + POW2(q0*R);
+        double d = 1 + POW2(q*R);
+        B = sqrt( n/d ); 
+    }
+
+    if(spin ==2){
+        double n = POW2( POW2(q0*R) - 3) + POW2(3*R*q0);
+        double d = POW2( POW2(q*R) - 3) + POW2(3*R*q);
+        B = sqrt( n/d ); 
+    }
+
+    return B;
+
+}
+//Young, Grace. (2011). New Package for RooFit Supporting Dalitz Analysis: RooAmplitudes. 10.13140/RG.2.2.17128.37124. 
+__device__ fptype q(double m, double m1, double m2){
+
+    double n = sqrt( (POW2(m) - POW2(m1+m2))*(POW2(m) - POW2(m1-m2)) );
+    double d = 2*m;
+
+    return n/d ; 
+
+}
+
 
 __device__ fptype dampingFactorSquare(const fptype &cmmom, const int &spin, const fptype &mRadius) {
     fptype square = mRadius * mRadius * cmmom * cmmom;
@@ -61,29 +88,7 @@ __device__ fptype spinFactor(unsigned int spin,
     if(0 == spin)
         return 1; // Should not cause branching since every thread evaluates the same resonance at the same time.
 
-    /*
-    // Copied from BdkDMixDalitzAmp
-
-    fptype _mA = (PAIR_12 == cyclic_index ? daug1Mass : (PAIR_13 == cyclic_index ? daug1Mass : daug3Mass));
-    fptype _mB = (PAIR_12 == cyclic_index ? daug2Mass : (PAIR_13 == cyclic_index ? daug3Mass : daug3Mass));
-    fptype _mC = (PAIR_12 == cyclic_index ? daug3Mass : (PAIR_13 == cyclic_index ? daug2Mass : daug1Mass));
-
-    fptype _mAC = (PAIR_12 == cyclic_index ? m13 : (PAIR_13 == cyclic_index ? m12 : m12));
-    fptype _mBC = (PAIR_12 == cyclic_index ? m23 : (PAIR_13 == cyclic_index ? m23 : m13));
-    fptype _mAB = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
-
-    // The above, collapsed into single tests where possible.
-    fptype _mA = (PAIR_13 == cyclic_index ? daug3Mass : daug2Mass);
-    fptype _mB = (PAIR_23 == cyclic_index ? daug2Mass : daug1Mass);
-    fptype _mC = (PAIR_12 == cyclic_index ? daug3Mass : (PAIR_13 == cyclic_index ? daug2Mass : daug1Mass));
-
-    fptype _mAC = (PAIR_23 == cyclic_index ? m13 : m23);
-    fptype _mBC = (PAIR_12 == cyclic_index ? m13 : m12);
-    fptype _mAB = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
-    */
-
-    // Copied from EvtDalitzReso, with assumption that pairAng convention matches pipipi0 from EvtD0mixDalitz.
-    // Again, all threads should get the same branch.
+   
     fptype _mA  = (PAIR_12 == cyclic_index ? daug1Mass : (PAIR_13 == cyclic_index ? daug3Mass : daug2Mass));
     fptype _mB  = (PAIR_12 == cyclic_index ? daug2Mass : (PAIR_13 == cyclic_index ? daug1Mass : daug3Mass));
     fptype _mC  = (PAIR_12 == cyclic_index ? daug3Mass : (PAIR_13 == cyclic_index ? daug2Mass : daug1Mass));
@@ -107,6 +112,7 @@ __device__ fptype spinFactor(unsigned int spin,
     return sFactor;
 }
 
+
 template <int I>
 __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
     fptype motherMass   = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 0]);
@@ -122,61 +128,43 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
     unsigned int symmDP       = RO_CACHE(indices[6]);
 
     fpcomplex ret(0., 0.);
-    fptype resmassSq = POW2(resmass);
-
+    
 #pragma unroll
     for(int i = 0; i < I; i++) {
-        fptype rMassSq  = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
-        fptype rMass    = sqrt(rMassSq);
-        fptype frFactor = 1;
-        fptype fdFactor = 1;
+        fptype mass2  = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
+        fptype mass    = sqrt(mass2);
+        fptype _B = 1.0;
+        
 
         // Calculate momentum of the two daughters in the resonance rest frame; note symmetry under interchange (dm1 <->
         // dm2).
-        fptype measureDaughterMoms = twoBodyCMmom(rMassSq,
+        fptype _q = q(mass,
                                                   (PAIR_23 == cyclic_index ? daug2Mass : daug1Mass),
-                                                  (PAIR_12 == cyclic_index ? daug2Mass : daug3Mass),
-                                                  rMass);
-        fptype nominalDaughterMoms = twoBodyCMmom(resmassSq,
+                                                  (PAIR_12 == cyclic_index ? daug2Mass : daug3Mass)
+                                                  );
+        fptype _q0 = q(resmass,
                                                   (PAIR_23 == cyclic_index ? daug2Mass : daug1Mass),
                                                   (PAIR_12 == cyclic_index ? daug2Mass : daug3Mass));
 
+        // BW Factor
         if(0 != spin) {
-            frFactor = dampingFactorSquare(nominalDaughterMoms, spin, meson_radius);
-            frFactor /= dampingFactorSquare(measureDaughterMoms, spin, meson_radius);
-            // Form_Factor_Mother_Decay
-            fptype measureDaughterMoms2
-                = twoBodyCMmom(motherMass * motherMass,
-                               rMass,
-                               //					    (PAIR_23 == cyclic_index ? daug2Mass : daug1Mass),
-                               (PAIR_12 == cyclic_index ? daug3Mass : daug2Mass),
-                               rMass);
-            //                        motherMass);
-            fptype nominalDaughterMoms2
-                = twoBodyCMmom(motherMass * motherMass,
-                               resmass,
-                               //					    (PAIR_23 == cyclic_index ? daug2Mass : daug1Mass),
-                               (PAIR_12 == cyclic_index ? daug3Mass : daug2Mass),
-                               resmass);
-            //                        motherMass);
-
-            fdFactor = dampingFactorSquare(nominalDaughterMoms2, spin, 5.);
-            fdFactor /= dampingFactorSquare(measureDaughterMoms2, spin, 5.);
+            _B = BWF(_q,_q0,spin);
         }
 
-        // RBW evaluation
-        fptype A = (resmassSq - rMassSq);
-        fptype B = resmassSq * reswidth  /** pow(measureDaughterMoms / nominalDaughterMoms, 2.0 * spin + 1) * frFactor
-                   / sqrt(rMassSq)  */;
-        fptype C = 1.0 / (A * A + B * B);
-        fpcomplex retur(A * C, B * C); // Dropping F_D=1
+        //Mass dependent Width
 
-        //retur *= sqrt(frFactor * fdFactor);
-        //fptype spinF = spinFactor(spin, motherMass, daug1Mass, daug2Mass, daug3Mass, m12, m13, m23, cyclic_index);
-        //  fptype spinF = spinFactor(spin, motherMass, daug1Mass, daug2Mass, daug3Mass, m12, m13, m23, cyclic_index,
-        //  resmass);
-        //retur *= spinF;
-        ret += retur;
+        double _w = reswidth * pow( _q/_q0 , 2*spin + 1)*(resmass/mass)*POW2(_B);
+
+        // RBW evaluation
+       
+
+        fptype A = (POW2(resmass) - POW2(mass));
+        fptype B = POW2(resmass) * _w ;
+        fptype C = 1.0 / (POW2(A) + POW2(B));
+        fpcomplex _BW(A * C, B * C); 
+
+        ret+=_BW;
+
         if(I != 0) {
             fptype swpmass = m12;
             m12            = m13;
@@ -186,6 +174,10 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
 
     return ret;
 }
+
+
+
+
 
 __device__ fpcomplex gaussian(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
     // indices[1] is unused constant index, for consistency with other function types.

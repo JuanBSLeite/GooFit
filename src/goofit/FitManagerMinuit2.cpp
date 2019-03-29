@@ -69,4 +69,6 @@ Minuit2::FunctionMinimum FitManagerMinuit2::fit() {
     return min;
 }
 
+
+
 } // namespace GooFit

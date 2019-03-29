@@ -268,4 +268,27 @@ __device__ fptype getmass(const unsigned int &pair,
 
     return mpair;
 }
+
+
+__host__ void PrintFF(std::vector<std::vector<fptype>> ff , size_t nEntries , size_t n_res){
+
+   
+    fptype sum = 0;
+
+    std::cout << "nEntries= " << nEntries << '\n';
+    for(size_t i = 0; i < n_res ; i++){
+
+        for(size_t j = 0; j< n_res ; j++){
+            std::cout << "FF[" << i << "," << j <<"]= " << ff[i][j] << std::endl;
+
+        }
+
+        sum+=ff[i][i];
+    }
+
+    std::cout << "Sum[i,i]= " << sum << std::endl;
+}
+
+
+
 } // namespace GooFit
