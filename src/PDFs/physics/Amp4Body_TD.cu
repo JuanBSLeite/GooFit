@@ -20,7 +20,7 @@ class.
 #include <goofit/PDFs/ParameterContainer.h>
 #include <goofit/PDFs/physics/Amp4Body.h>
 #include <goofit/PDFs/physics/Amp4Body_TD.h>
-#include <goofit/PDFs/physics/detail/EvalVar.h>
+#include <goofit/PDFs/physics/detail/Dim5.h>
 #include <goofit/detail/Complex.h>
 #include <mcbooster/Evaluate.h>
 #include <mcbooster/EvaluateArray.h>
@@ -723,6 +723,7 @@ __host__ fptype Amp4Body_TD::normalize() {
 __host__
     std::tuple<mcbooster::ParticlesSet_h, mcbooster::VariableSet_h, mcbooster::RealVector_h, mcbooster::BoolVector_h>
     Amp4Body_TD::GenerateSig(unsigned int numEvents, int seed) {
+    initialize();
     copyParams();
 
     std::vector<mcbooster::GReal_t> masses(decayInfo.particle_masses.begin() + 1, decayInfo.particle_masses.end());

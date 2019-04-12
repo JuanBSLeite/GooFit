@@ -21,6 +21,13 @@ void init_DalitzPlotter(py::module &m) {
         .def("getZval", &DalitzPlotter::getZval, "event"_a)
         .def("getVal", &DalitzPlotter::getVal, "event"_a, "num"_a = 0)
         .def("getDataSet", &DalitzPlotter::getDataSet)
+        .def("getM12", &DalitzPlotter::getM12)
+        .def("getM13", &DalitzPlotter::getM13)
+        .def("fillDataSetMC",
+             &DalitzPlotter::fillDataSetMC,
+             "Fill an unbinned dataset with values from a simple grid based MC fill."
+             "dataset"_a,
+             "nTotal"_a)
         .def("make2D",
              [](const DalitzPlotter &self) {
                  py::array_t<fptype> result{{self.getM12().getNumBins(), self.getM13().getNumBins()}};
