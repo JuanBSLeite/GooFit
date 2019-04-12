@@ -1,8 +1,11 @@
+#include <fmt/format.h>
+
 #include <goofit/Application.h>
 #include <goofit/GlobalCudaDefines.h>
 #include <goofit/PDFs/detail/Globals.h>
 #include <goofit/Version.h>
 #include <goofit/VersionGit.h>
+#include <goofit/detail/fenv.h>
 
 #include <thrust/detail/config/device_system.h>
 
@@ -12,6 +15,10 @@
 
 #ifdef GOOFIT_MPI
 #include <mpi.h>
+#endif
+
+#if GOOFIT_ROOT_FOUND
+#include <RVersion.h>
 #endif
 
 #if THRUST_DEVICE_SYSTEM == THRUST_DEVICE_SYSTEM_CUDA
@@ -47,7 +54,7 @@ void print_splash() {
      ╚═════╝  ╚════╝  ╚════╝ ╚═╝   ╚═╝  ██║
                                    ███████║
                                    ╚══════╝
-    )raw";
+)raw";
     // clang-format on
 
     std::cout << reset << dim;
@@ -76,37 +83,50 @@ void print_splash() {
     std::cout << reset << std::flush;
 }
 
-void print_goofit_info(int gpuDev_) {
-    GOOFIT_INFO("GooFit: Version {} ({}) Commit: {}", GOOFIT_VERSION, GOOFIT_TAG, GOOFIT_GIT_VERSION);
+std::string goofit_info_version() {
+    return fmt::format("GooFit: Version {} ({}) Commit: {}", GOOFIT_VERSION, GOOFIT_TAG, GOOFIT_GIT_VERSION);
+}
 
+std::string goofit_info_device(int gpuDev_) {
+    std::string output;
 #if THRUST_DEVICE_SYSTEM == THRUST_DEVICE_SYSTEM_CUDA
     if(gpuDev_ >= 0) {
         cudaDeviceProp devProp;
         cudaGetDeviceProperties(&devProp, gpuDev_);
 
-        GOOFIT_INFO("CUDA: Device {}: {}", gpuDev_, devProp.name);
+        output += fmt::format("CUDA {}.{}\n", CUDART_VERSION / 1000, (CUDART_VERSION % 100) / 10.);
+        output += fmt::format("CUDA: Device {}: {}\n", gpuDev_, devProp.name);
 
-        GOOFIT_INFO("CUDA: Compute {}.{}", devProp.major, devProp.minor);
-        GOOFIT_INFO("CUDA: Total global memory: {} GB", devProp.totalGlobalMem / 1.0e9);
-        GOOFIT_INFO("CUDA: Multiprocessors: {}", devProp.multiProcessorCount);
+        output += fmt::format("CUDA: Compute {}.{}\n", devProp.major, devProp.minor);
+        output += fmt::format("CUDA: Total global memory: {} GB\n", devProp.totalGlobalMem / 1.0e9);
+        output += fmt::format("CUDA: Multiprocessors: {}", devProp.multiProcessorCount);
 
-        GOOFIT_DEBUG("CUDA: Total amount of shared memory per block: {}", devProp.sharedMemPerBlock);
-        GOOFIT_DEBUG("CUDA: Total registers per block: {}", devProp.regsPerBlock);
-        GOOFIT_DEBUG("CUDA: Warp size: {}", devProp.warpSize);
-        GOOFIT_DEBUG("CUDA: Maximum memory pitch: {}", devProp.memPitch);
-        GOOFIT_DEBUG("CUDA: Total amount of constant memory: {}", devProp.totalConstMem);
+#ifdef GOOFIT_DEBUG_FLAG
+        output += fmt::format("\nCUDA: Total amount of shared memory per block: {}\n", devProp.sharedMemPerBlock);
+        output += fmt::format("CUDA: Total registers per block: {}\n", devProp.regsPerBlock);
+        output += fmt::format("CUDA: Warp size: {}\n", devProp.warpSize);
+        output += fmt::format("CUDA: Maximum memory pitch: {}\n", devProp.memPitch);
+        output += fmt::format("CUDA: Total amount of constant memory: {}", devProp.totalConstMem);
+#endif
     }
 
 #elif THRUST_DEVICE_SYSTEM == THRUST_DEVICE_SYSTEM_OMP
-    GOOFIT_INFO("OMP: Number of threads: {}", omp_get_max_threads());
+    output += fmt::format("OMP: Number of threads: {}", omp_get_max_threads());
 #elif THRUST_DEVICE_SYSTEM == THRUST_DEVICE_SYSTEM_TBB
-    GOOFIT_INFO("TBB: Backend selected");
+    output += fmt::format("TBB: Backend selected");
 #elif THRUST_DEVICE_SYSTEM == THRUST_DEVICE_SYSTEM_CPP
-    GOOFIT_INFO("CPP: Single threaded mode");
+    output += fmt::format("CPP: Single threaded mode");
 #endif
+    return output;
+}
+
+void print_goofit_info(int gpuDev_) {
+    std::cout << green;
+    std::cout << goofit_info_version() << std::endl;
+    std::cout << goofit_info_device(gpuDev_) << std::endl << reset;
 
 #if GOOFIT_ROOT_FOUND
-    GOOFIT_INFO("ROOT: Found");
+    GOOFIT_INFO("ROOT: {}.{}.{}", ROOT_VERSION_CODE / 65536, ROOT_VERSION_CODE / 256 % 256, ROOT_VERSION_CODE % 256);
 #else
     GOOFIT_INFO("ROOT: Not found");
 #endif
@@ -196,8 +216,7 @@ Application::Application(std::string discription, int argc, char **argv)
                           throw CLI::Success();
                       },
                       "Show the available GPU devices and exit")
-        ->group("GooFit")
-        ->short_circuit();
+        ->group("GooFit");
 #endif
     auto quiet = add_flag("-q,--quiet", quiet_, "Reduce the verbosity of the Application")->group("GooFit");
 
@@ -258,6 +277,15 @@ Application::~Application() {
 #endif
 }
 
+// This function call is enabled for macOS, too. Will not have an affect for CUDA code.
+void Application::set_floating_exceptions() const {
+#if THRUST_DEVICE_SYSTEM == THRUST_DEVICE_SYSTEM_CUDA
+    GOOFIT_INFO("CUDA does not support floating point exceptions. Please recompile in OMP or CPP mode.");
+#else
+    feenableexcept(FE_DIVBYZERO | FE_INVALID);
+#endif
+}
+
 std::string Application::get_filename(const std::string &input_str, std::string base) const {
     // Run from current directory
     if(CLI::ExistingFile(input_str).empty())
@@ -282,6 +310,13 @@ std::string Application::get_filename(const std::string &input_str, std::string 
             std::cout << "Found file at " << new_input << std::endl;
             return new_input;
         }
+    }
+
+    // If in GooFit as a package, check the goofit parent dir
+    std::string new_input = std::string(GOOFIT_SOURCE_DIR) + "/../" + input_str;
+    if(CLI::ExistingFile(new_input).empty()) {
+        std::cout << "Found file at " << new_input << std::endl;
+        return new_input;
     }
 
     // Could not find file

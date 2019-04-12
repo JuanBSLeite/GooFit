@@ -33,7 +33,7 @@ class.
 #include <goofit/PDFs/physics/Amp4BodyGlobals.h>
 #include <goofit/PDFs/physics/Amplitude.h>
 #include <goofit/PDFs/physics/detail/AmpCalc.h>
-#include <goofit/PDFs/physics/detail/EvalVar.h>
+#include <goofit/PDFs/physics/detail/Dim5.h>
 #include <goofit/PDFs/physics/detail/LSCalculator.h>
 #include <goofit/PDFs/physics/detail/NormIntegrator.h>
 #include <goofit/PDFs/physics/detail/NormLSCalculator.h>
@@ -567,6 +567,8 @@ __host__
     // Must configure our functions before any calculations!
     // setupObservables();
     // setIndices();
+
+    initialize();
 
     std::vector<mcbooster::GReal_t> masses(decayInfo.particle_masses.begin() + 1, decayInfo.particle_masses.end());
     mcbooster::PhaseSpace phsp(decayInfo.particle_masses[0], masses, numEvents, generation_offset);

@@ -1,17 +1,17 @@
-cmake_minimum_required(VERSION 3.4...3.12)
+cmake_minimum_required(VERSION 3.4...3.13)
 
 if(${CMAKE_VERSION} VERSION_LESS 3.12)
     cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
 endif()
 
 project(GOOFIT
-    VERSION 2.2.1
+    VERSION 2.2.3
     LANGUAGES CXX)
 
-#set(GOOFIT_TAG "dev")
+set(GOOFIT_TAG "dev")
 #set(GOOFIT_TAG "alpha")
 #set(GOOFIT_TAG "beta")
-set(GOOFIT_TAG "release")
+#set(GOOFIT_TAG "release")
 
 include(FeatureSummary)
 include(CMakePrintHelpers)
@@ -486,6 +486,7 @@ endif()
 target_link_libraries(GooFit_Common INTERFACE ROOT::Minuit2)
 
 # Adding simple libraries
+set(CLI11_TESTING OFF)
 add_subdirectory("extern/CLI11")
 mark_as_advanced(CLI_CXX_STD CLI_EXAMPLES CLI_SINGLE_FILE CLI_SINGLE_FILE_TESTS CLI_TESTING)
 target_link_libraries(GooFit_Common INTERFACE CLI11::CLI11)
