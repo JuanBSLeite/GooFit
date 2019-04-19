@@ -13,6 +13,8 @@
 #if GOOFIT_ROOT_FOUND
 #include <TH2.h>
 #include <TH1.h>
+#include <TStyle.h>
+#include <TColor.h>
 
 #endif
 
@@ -33,41 +35,70 @@ class DalitzPlotter {
     DalitzPlotPdf * signalDalitz = nullptr;
     
   private:
+    
     double cpuGetM23(Variable massSum, double sij, double sik) { return (massSum.getValue() - sij - sik); }
 
     #if GOOFIT_ROOT_FOUND
-    void drawFitPlotsWithPulls(TH1 *hd, TH1 *ht, std::string plotdir) {
-            
-            const char *hname = hd->GetName();
-            char obsname[10];
-            for(int i = 0;; i++) {
-                if(hname[i] == '_')
-                    obsname[i] = '\0';
-                else
-                    obsname[i] = hname[i];
-                if(obsname[i] == '\0')
-                    break;
-            }
-            ht->Scale(hd->Integral() / ht->Integral());
-            ht->SetLineColor(kRed);
-            ht->SetLineWidth(3);
-            //hd->SetMarkerStyle(15);
-
-            hd->SetMarkerColor(kBlue);
-            hd->SetFillColor(kBlue);
-            //hd->Rebin(20);
-
-
-            TCanvas foo;
-
-            hd->Draw("HIST");
-            ht->Draw("HIST  same");
-
-
-            foo.SaveAs( (plotdir+"/"+obsname+"_fit.png").c_str()    );
-
-
+        void style(){
+            TStyle *myStyle= new TStyle( "myStyle", "Josue (LHCb) official plots style" );
+            Double_t lhcbWidth = 3;
+            myStyle->SetPadColor(0);
+            myStyle->SetCanvasColor(0);
+            myStyle->SetStatColor(0); 
+            myStyle->SetLineWidth(lhcbWidth);
+            myStyle->SetFrameLineWidth(lhcbWidth);
+            myStyle->SetHistLineWidth(lhcbWidth);
+            myStyle->SetFuncWidth(lhcbWidth);
+            myStyle->SetGridWidth(lhcbWidth);
+            myStyle->SetMarkerStyle(8);
+            myStyle->SetMarkerSize(1.5);
+            myStyle->SetPadTickX(1);            
+            myStyle->SetPadTickY(1);   
+            myStyle->SetOptStat(0); 
+            myStyle->SetOptFit(1111111);
+            const Int_t NRGBs = 5;
+            const Int_t NCont = 255;
+            Double_t stops[NRGBs] = { 0.00, 0.34, 0.61, 0.84, 1.00 };
+            Double_t red[NRGBs]   = { 0.00, 0.00, 0.87, 1.00, 0.51 };
+            Double_t green[NRGBs] = { 0.00, 0.81, 1.00, 0.20, 0.00 };
+            Double_t blue[NRGBs]  = { 0.51, 1.00, 0.12, 0.00, 0.00 };
+            TColor::CreateGradientColorTable(NRGBs, stops, red, green, blue, NCont);
+            gStyle->SetNumberContours(NCont);
+            gROOT->SetStyle("myStyle");
         }
+
+        void drawFitPlotsWithPulls(TH1 *hd, TH1 *ht, std::string plotdir) {
+                
+                const char *hname = hd->GetName();
+                char obsname[10];
+                for(int i = 0;; i++) {
+                    if(hname[i] == '_')
+                        obsname[i] = '\0';
+                    else
+                        obsname[i] = hname[i];
+                    if(obsname[i] == '\0')
+                        break;
+                }
+                ht->Scale(hd->Integral() / ht->Integral());
+                ht->SetLineColor(kRed);
+                ht->SetLineWidth(3);
+                //hd->SetMarkerStyle(15);
+
+                hd->SetMarkerColor(kBlue);
+                hd->SetFillColor(kBlue);
+                //hd->Rebin(20);
+
+
+                TCanvas foo;
+
+                hd->Draw("HIST");
+                ht->Draw("HIST  same");
+
+
+                foo.SaveAs( (plotdir+"/"+obsname+"_fit.png").c_str()    );
+
+
+            }
         #endif
 
   public:
