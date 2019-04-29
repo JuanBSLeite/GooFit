@@ -19,7 +19,7 @@ FitManagerMinuit2::FitManagerMinuit2(PdfBase *dat)
 Minuit2::FunctionMinimum FitManagerMinuit2::fit() {
     auto val = Minuit2::MnPrint::Level();
     Minuit2::MnPrint::SetLevel(verbosity);
-    Minuit2::MnStrategy(2);
+//    Minuit2::MnStrategy(2);
     
 
     // Setting global call number to 0
