@@ -303,7 +303,8 @@ __host__ double GooPdf::calculateNLL() const {
 
     // if ((cpuDebug & 1) && (host_callnumber >= 1)) GooFit::abort(__FILE__, __LINE__, getName() + " debug abort",
     // this);
-    return 2 * ret;
+    //return 2 * ret;
+	return ret;
 }
 
 __host__ std::vector<fptype> GooPdf::evaluateAtPoints(Observable var) {
