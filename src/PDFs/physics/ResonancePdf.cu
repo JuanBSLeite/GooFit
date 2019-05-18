@@ -388,18 +388,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
     fptype g2                 = cudaArray[indices[4]];
     unsigned int cyclic_index = indices[5];
     unsigned int doSwap       = indices[6];
-
-    fptype pipmass = 0.13957018;
-    fptype pi0mass = 0.1349766;
-    fptype kpmass  = 0.493677;
-    fptype k0mass  = 0.497614;
-
-    fptype twopimasssq  = 4 * pipmass * pipmass;
-    fptype twopi0masssq = 4 * pi0mass * pi0mass;
-    fptype twokmasssq   = 4 * kpmass * kpmass;
-    fptype twok0masssq  = 4 * k0mass * k0mass;
-
-    
+  
     fptype const mpi = 0.13956995;
     fptype const mpi0      = 0.1349766;
     fptype const mK = 0.493677;
