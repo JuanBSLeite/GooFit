@@ -342,7 +342,8 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
         fptype A = massSqTerm + f;
         fptype B = resmass*gamma;
         fptype C = 1./ (POW2(A) + POW2(B));
-        fpcomplex retur = FF_MD*FF_RD*Angular*(1 + d_ * reswidth/reswidth )*(A*C , B*C);
+        fpcomplex retur(A*C , B*C);
+        retur*=FF_MD*FF_RD*Angular*(1 + d_ * reswidth/reswidth );
 	            
 	    ret += retur;
         if(I == 2) {
