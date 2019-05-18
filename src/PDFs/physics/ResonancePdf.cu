@@ -393,8 +393,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
     fptype const mpi0      = 0.1349766;
     fptype const mK = 0.493677;
     fptype const mK0       = 0.497648;
-    fptype const resMassSq = resmass*resmass;
-	fptype const mSumSq0_   = ( mpi0 + mpi0 ) * ( mpi0 + mpi0 );
+   	fptype const mSumSq0_   = ( mpi0 + mpi0 ) * ( mpi0 + mpi0 );
 	fptype const mSumSq1_  = ( mpi + mpi ) * ( mpi + mpi );
 	fptype const mSumSq2_  = ( mK + mK ) * ( mK + mK );
 	fptype const mSumSq3_   = ( mK0 + mK0 ) * ( mK0 + mK0 );
