@@ -305,20 +305,20 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
 
     for(int i = 0; i < I; i++) {
     	fptype mass2  = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
-        fptype massSqTerm = POW2(resmass) - mass2;
+        fptype massSqTerm = -POW2(resmass) + mass2;
 
         fptype FF_MD = Form_Factor_Mother_Decay(spin, motherMass, mass2, 
 			PAIR_12==cyclic_index ? POW2(daug3Mass) : (PAIR_13==cyclic_index ? POW2(daug2Mass) : POW2(daug1Mass))
 			,resmass);
 
         fptype FF_RD = Form_Factor_Resonance_Decay(spin, resmass, mass2,
-		       	PAIR_12==cyclic_index ? POW2(daug1Mass) : (PAIR_23==cyclic_index ?  POW2(daug2Mass) :  POW2(daug2Mass)),
+		       	PAIR_12==cyclic_index ? POW2(daug1Mass) : (PAIR_23==cyclic_index ?  POW2(daug2Mass) :  POW2(daug3Mass)),
 			PAIR_12==cyclic_index ? POW2(daug2Mass) : (PAIR_23==cyclic_index ?  POW2(daug3Mass) :  POW2(daug1Mass)));
         
 	    fptype Angular = Angular_Distribution(spin, motherMass, daug1Mass, daug2Mass,daug3Mass, m12, m23, m13);
-
+        
         fptype q0_ = sqrt( lambda( POW2(resmass), 
-                PAIR_12==cyclic_index ? POW2(daug1Mass) : (PAIR_23==cyclic_index ?  POW2(daug2Mass) :  POW2(daug2Mass)),
+                PAIR_12==cyclic_index ? POW2(daug1Mass) : (PAIR_23==cyclic_index ?  POW2(daug2Mass) :  POW2(daug3Mass)),
                 PAIR_12==cyclic_index ? POW2(daug2Mass) : (PAIR_23==cyclic_index ?  POW2(daug3Mass) :  POW2(daug1Mass))
                 ) )/2.*resmass;
         
@@ -399,34 +399,63 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
     fptype twokmasssq   = 4 * kpmass * kpmass;
     fptype twok0masssq  = 4 * k0mass * k0mass;
 
+    
+    fptype const mpi = 0.13956995;
+    fptype const mpi0      = 0.1349766;
+    fptype const mK = 0.493677;
+    fptype const mK0       = 0.497648;
+    fptype const resMassSq = resmass*resmass;
+	fptype const mSumSq0_   = ( mpi0 + mpi0 ) * ( mpi0 + mpi0 );
+	fptype const mSumSq1_  = ( mpi + mpi ) * ( mpi + mpi );
+	fptype const mSumSq2_  = ( mK + mK ) * ( mK + mK );
+	fptype const mSumSq3_   = ( mK0 + mK0 ) * ( mK0 + mK0 );
+	fptype rho1 = 0.0; 
+	fptype rho2 = 0.0;
+
     fpcomplex ret(0., 0.);
     for(int i = 0; i < 1 + doSwap; i++) {
-        fptype rhopipi_real = 0, rhopipi_imag = 0;
-        fptype rhokk_real = 0, rhokk_imag = 0;
 
         fptype s = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
 
-        if(s >= twopimasssq)
-            rhopipi_real += (2. / 3) * sqrt(1 - twopimasssq / s); // Above pi+pi- threshold
-        else
-            rhopipi_imag += (2. / 3) * sqrt(-1 + twopimasssq / s);
-        if(s >= twopi0masssq)
-            rhopipi_real += (1. / 3) * sqrt(1 - twopi0masssq / s); // Above pi0pi0 threshold
-        else
-            rhopipi_imag += (1. / 3) * sqrt(-1 + twopi0masssq / s);
-        if(s >= twokmasssq)
-            rhokk_real += 0.5 * sqrt(1 - twokmasssq / s); // Above K+K- threshold
-        else
-            rhokk_imag += 0.5 * sqrt(-1 + twokmasssq / s);
-        if(s >= twok0masssq)
-            rhokk_real += 0.5 * sqrt(1 - twok0masssq / s); // Above K0K0 threshold
-        else
-            rhokk_imag += 0.5 * sqrt(-1 + twok0masssq / s);
-		
-        fptype A = (resmass * resmass - s) + resmass * (rhopipi_imag * g1 + rhokk_imag * g2);
-        fptype B = resmass * (rhopipi_real * g1 + rhokk_real * g2);
-        fptype C = 1.0 / (A * A + B * B);
-        fpcomplex retur(A * C, B * C);
+        fptype dMSq      = POW2(resmass) - s;
+
+        if (s > mSumSq0_) {
+            rho1 = sqrt(1.0 - mSumSq0_/s)/3.0;
+            if (s > mSumSq1_) {
+                rho1 += 2.0*sqrt(1.0 - mSumSq1_/s)/3.0;
+                if (s > mSumSq2_) {
+                    rho2 = 0.5*sqrt(1.0 - mSumSq2_/s);
+                        if (s > mSumSq3_) {
+                            rho2 += 0.5*sqrt(1.0 - mSumSq3_/s );
+                        } else {
+                        // Continue analytically below higher channel thresholds
+                        // This contributes to the real part of the amplitude denominator
+                        dMSq += g2*resmass*0.5*sqrt(mSumSq3_/s - 1.0);
+                        }
+                } else {
+                    // Continue analytically below higher channel thresholds
+                    // This contributes to the real part of the amplitude denominator
+                    rho2 = 0.0;
+                    dMSq += g2*resmass*(0.5*sqrt(mSumSq2_/s - 1.0) + 0.5*sqrt(mSumSq3_/s - 1.0));
+                }
+            } else {
+                // Continue analytically below higher channel thresholds
+                // This contributes to the real part of the amplitude denominator
+                dMSq += g1*resmass*2.0*sqrt(mSumSq1_/s - 1.0)/3.0;
+            }
+        }
+
+        fptype width1 = g1*rho1*resmass;
+		fptype width2 = g2*rho2*resmass;
+		fptype widthTerm = width1 + width2;
+
+        fpcomplex retur(dMSq,widthTerm);
+
+        fptype denomFactor = dMSq*dMSq + widthTerm*widthTerm;
+		fptype invDenomFactor = 1.0/denomFactor;
+
+        retur *= invDenomFactor;
+        
         ret += retur;
         if(doSwap) {
             fptype swpmass = m12;
