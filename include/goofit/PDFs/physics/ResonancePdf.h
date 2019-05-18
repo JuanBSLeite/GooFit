@@ -78,12 +78,7 @@ class RBW : public ResonancePdf {
     ~RBW() override = default;
 };
 
-/// LASS
-class LASS : public ResonancePdf {
-  public:
-    LASS(std::string name, Variable ar, Variable ai, Variable mass, Variable width, unsigned int sp, unsigned int cyc);
-    ~LASS() override = default;
-};
+
 
 
 
