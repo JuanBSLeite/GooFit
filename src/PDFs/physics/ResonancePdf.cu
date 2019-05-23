@@ -243,7 +243,7 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
         );
    
         // RBW evaluation
-        fptype A = mass2 - POW2(resmass) ;
+        fptype A = -mass2 + POW2(resmass) ;
         fptype B = -resmass * Width ;
         fptype C = 1.0 / (POW2(A) + POW2(B));
         fpcomplex _BW(A * C, B * C); 
@@ -305,7 +305,7 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
 
     for(int i = 0; i < I; i++) {
     	fptype mass2  = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
-        fptype massSqTerm = -POW2(resmass)  + mass2;
+        fptype massSqTerm = POW2(resmass)  - mass2;
 
         fptype FF_MD = Form_Factor_Mother_Decay(spin, motherMass, mass2, 
 			PAIR_12==cyclic_index ? POW2(daug3Mass) : (PAIR_13==cyclic_index ? POW2(daug2Mass) : POW2(daug1Mass))
@@ -406,7 +406,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
 
         fptype s = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
 
-        fptype dMSq      = -POW2(resmass) + s;
+        fptype dMSq      = POW2(resmass) - s;
 
         if (s > mSumSq0_) {
             rho1 = sqrt(1.0 - mSumSq0_/s)/3.0;
@@ -438,7 +438,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
 		fptype width2 = g2*rho2*resmass;
 		fptype widthTerm = width1 + width2;
 
-        fpcomplex retur(dMSq,widthTerm);
+        fpcomplex retur(dMSq,-widthTerm);
 
         fptype denomFactor = dMSq*dMSq + widthTerm*widthTerm;
 		fptype invDenomFactor = 1.0/denomFactor;
@@ -453,7 +453,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
         }
     }
 
-    return ret;
+    return 0.4*ret;
 }
 
 __device__ fpcomplex cubicspline(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
