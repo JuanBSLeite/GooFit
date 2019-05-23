@@ -6,7 +6,7 @@ namespace GooFit {
 
 __device__ fptype cDeriatives[2 * MAXNKNOBS];
 
-__device__ fptype twoBodyCMmom(double rMassSq, fptype d1m, fptype d2m, fptype mR) {
+__device__ fptype twoBodyCMmom(const fptype &rMassSq,const fptype &d1m,const fptype &d2m,const fptype &mR) {
     fptype x = rMassSq;
     fptype y = d1m * d1m;
     fptype z = d2m * d2m;
@@ -15,7 +15,7 @@ __device__ fptype twoBodyCMmom(double rMassSq, fptype d1m, fptype d2m, fptype mR
     return sqrt(l) / (2 * mR);
 }
 
-__device__ fptype twoBodyCMmom(fptype rMassSq, fptype d1m, fptype d2m) {
+__device__ fptype twoBodyCMmom(const fptype &rMassSq,const fptype &d1m,const fptype &d2m) {
     // For A -> B + C, calculate momentum of B and C in rest frame of A.
     // PDG 38.16.
 
@@ -30,7 +30,7 @@ __device__ fptype twoBodyCMmom(fptype rMassSq, fptype d1m, fptype d2m) {
 }
 
 
-__device__ fptype  lambda (double x, double y, double z){
+__device__ fptype  lambda (const fptype &x, const fptype &y,const fptype &z){
 
 	double l;
 	l = (x - y - z)*(x - y - z) - 4*y*z;
@@ -39,12 +39,12 @@ __device__ fptype  lambda (double x, double y, double z){
 
 }
 
-__device__ fptype Form_Factor_Mother_Decay(int spin, double M, double sab, double mcsq, double mR){
+__device__ fptype Form_Factor_Mother_Decay(const int &spin,const fptype &M, const fptype &sab, const fptype &mcsq, const fptype &mR){
     
-    double s = M*M, mRsq = mR*mR;
-    double fD, fD0, pstr, pstr0, q2 =0;
-    double const rD2 = 25.0;
-    double ret;
+    fptype s = M*M, mRsq = mR*mR;
+    fptype fD, fD0, pstr, pstr0, q2 =0;
+    const fptype rD2 = 25.0;
+    fptype ret;
     
     if (spin == 0){
          ret = 1;
@@ -76,13 +76,13 @@ __device__ fptype Form_Factor_Mother_Decay(int spin, double M, double sab, doubl
     
 }
 
-__device__ fptype Form_Factor_Resonance_Decay(int spin, double mR, double sab, double masq, double mbsq){
+__device__ fptype Form_Factor_Resonance_Decay(const int &spin,const fptype &mR,const fptype &sab,const fptype &masq, const fptype &mbsq){
 
-	double mRsq = mR*mR;
-    double fR, fR0, pstr, pstr0, q2 = 0;
+    fptype mRsq = mR*mR;
+    fptype fR, fR0, pstr, pstr0, q2 = 0;
    
-    double const rR2 = 2.25;
-    double ret=-1;
+    const fptype rR2 = 2.25;
+    fptype ret=-1;
 
 	if (spin == 0){
         ret =1;
@@ -119,9 +119,9 @@ __device__ fptype Form_Factor_Resonance_Decay(int spin, double mR, double sab, d
 
 }
 
-__device__ fptype Angular_Distribution(int l, double M, double ma, double mb, double mc, double sab, double sbc, double sac){
+__device__ fptype Angular_Distribution(const int l, const fptype &M, const fptype &ma, const fptype &mb, const fptype &mc, const fptype &sab, const fptype &sbc, const fptype &sac){
     
-    double spin, spin1, spin2, A, B, C, D = 0;
+    fptype spin, spin1, spin2, A, B, C, D = 0;
     
     spin1 = sbc - sac + (M*M-mc*mc)*(ma*ma-mb*mb)/sab;
     A = sab-2*M*M-2*mc*mc;
@@ -137,10 +137,10 @@ __device__ fptype Angular_Distribution(int l, double M, double ma, double mb, do
 
 }
 
-__device__ fptype Gamma(int spin, double mR, double width, double mab, double masq, double mbsq){
+__device__ fptype Gamma(const int &spin, const fptype &mR, const fptype &width, const fptype &mab, const fptype &masq, const fptype &mbsq){
 
-    double pstr, pstr0,fR, mRsq = mR*mR, sab = mab;
-    double ret=-1;
+    fptype pstr, pstr0,fR, mRsq = mR*mR, sab = mab*mab;
+    fptype ret=-1;
 
 	pstr0 = sqrt(lambda(mRsq,masq,mbsq))/(2*mR);
 	pstr = sqrt(lambda(sab,masq,mbsq))/(2*mab);
@@ -235,22 +235,22 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
 		       	PAIR_12==cyclic_index ? POW2(daug1Mass) : (PAIR_23==cyclic_index ?  POW2(daug2Mass) :  POW2(daug2Mass)),
 			PAIR_12==cyclic_index ? POW2(daug2Mass) : (PAIR_23==cyclic_index ?  POW2(daug3Mass) :  POW2(daug1Mass)));
         
-	    fptype Angular = Angular_Distribution(spin, motherMass, daug1Mass, daug2Mass,daug3Mass, m12, m23, m13);
+	fptype Angular = Angular_Distribution(spin, motherMass, daug1Mass, daug2Mass,daug3Mass, m12, m23, m13);
         
-        fptype Width = Gamma(spin, resmass, reswidth, mass2,
+        fptype Width = Gamma(spin, resmass, reswidth, sqrt(mass2),
             PAIR_12==cyclic_index ? POW2(daug1Mass) : (PAIR_23==cyclic_index ?  POW2(daug2Mass) :  POW2(daug3Mass)),
             PAIR_12==cyclic_index ? POW2(daug2Mass) : (PAIR_23==cyclic_index ?  POW2(daug3Mass) :  POW2(daug1Mass))
         );
    
         // RBW evaluation
-        fptype A =  mass2 - POW2(resmass) ;
-        fptype B = resmass * Width ;
+        fptype A = mass2 - POW2(resmass) ;
+        fptype B = -resmass * Width ;
         fptype C = 1.0 / (POW2(A) + POW2(B));
         fpcomplex _BW(A * C, B * C); 
 
-        _BW *= Angular*FF_MD*FF_RD*reswidth*resmass;
+        _BW *= Angular*FF_MD*FF_RD*resmass*reswidth;
 
-        ret+=_BW;
+	 ret+=_BW;
 
         if(I ==2 ) {
             fptype swpmass = m12;
@@ -299,13 +299,13 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
     unsigned int cyclic_index = RO_CACHE(indices[5]);
     unsigned int symmDP       = RO_CACHE(indices[6]);
 
-    double const mpi = 0.13956995;
+    const fptype mpi = 0.13956995;
 
     fpcomplex ret(0.0,0.0);
 
     for(int i = 0; i < I; i++) {
     	fptype mass2  = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
-        fptype massSqTerm = -POW2(resmass) + mass2;
+        fptype massSqTerm = -POW2(resmass)  + mass2;
 
         fptype FF_MD = Form_Factor_Mother_Decay(spin, motherMass, mass2, 
 			PAIR_12==cyclic_index ? POW2(daug3Mass) : (PAIR_13==cyclic_index ? POW2(daug2Mass) : POW2(daug1Mass))
@@ -315,7 +315,7 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
 		       	PAIR_12==cyclic_index ? POW2(daug1Mass) : (PAIR_23==cyclic_index ?  POW2(daug2Mass) :  POW2(daug3Mass)),
 			PAIR_12==cyclic_index ? POW2(daug2Mass) : (PAIR_23==cyclic_index ?  POW2(daug3Mass) :  POW2(daug1Mass)));
         
-	    fptype Angular = Angular_Distribution(spin, motherMass, daug1Mass, daug2Mass,daug3Mass, m12, m23, m13);
+	fptype Angular = Angular_Distribution(spin, motherMass, daug1Mass, daug2Mass,daug3Mass, m12, m23, m13);
         
         fptype q0_ = sqrt( lambda( POW2(resmass), 
                 PAIR_12==cyclic_index ? POW2(daug1Mass) : (PAIR_23==cyclic_index ?  POW2(daug2Mass) :  POW2(daug3Mass)),
@@ -327,7 +327,7 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
                 PAIR_12==cyclic_index ? POW2(daug2Mass) : (PAIR_23==cyclic_index ?  POW2(daug3Mass) :  POW2(daug1Mass))
                 ) )/2.*sqrt(mass2);
 
-        fptype gamma = Gamma(spin, resmass, reswidth, mass2,
+        fptype gamma = Gamma(spin, resmass, reswidth, sqrt(mass2),
             PAIR_12==cyclic_index ? POW2(daug1Mass) : (PAIR_23==cyclic_index ?  POW2(daug2Mass) :  POW2(daug3Mass)),
             PAIR_12==cyclic_index ? POW2(daug2Mass) : (PAIR_23==cyclic_index ?  POW2(daug3Mass) :  POW2(daug1Mass))
         );
@@ -393,7 +393,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
     fptype const mpi0      = 0.1349766;
     fptype const mK = 0.493677;
     fptype const mK0       = 0.497648;
-    fptype const resMassSq = resmass*resmass;
+    
 	fptype const mSumSq0_   = ( mpi0 + mpi0 ) * ( mpi0 + mpi0 );
 	fptype const mSumSq1_  = ( mpi + mpi ) * ( mpi + mpi );
 	fptype const mSumSq2_  = ( mK + mK ) * ( mK + mK );
@@ -406,7 +406,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
 
         fptype s = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
 
-        fptype dMSq      = POW2(resmass) - s;
+        fptype dMSq      = -POW2(resmass) + s;
 
         if (s > mSumSq0_) {
             rho1 = sqrt(1.0 - mSumSq0_/s)/3.0;
