@@ -502,10 +502,15 @@ __device__ fpcomplex cubicspline(fptype m12, fptype m13, fptype m23, unsigned in
         unsigned int kloAB                = khiAB - 1; //, kloAC = khiAC -1;
         unsigned int twokloAB             = kloAB + kloAB;
         unsigned int twokhiAB             = khiAB + khiAB;
-        fptype pwa_coefs_real_kloAB       = cudaArray[indices[pwa_coefs_idx + twokloAB]];
-        fptype pwa_coefs_real_khiAB       = cudaArray[indices[pwa_coefs_idx + twokhiAB]];
-        fptype pwa_coefs_imag_kloAB       = cudaArray[indices[pwa_coefs_idx + twokloAB + 1]];
-        fptype pwa_coefs_imag_khiAB       = cudaArray[indices[pwa_coefs_idx + twokhiAB + 1]];
+        fptype pwa_coefs_mag_kloAB       = cudaArray[indices[pwa_coefs_idx + twokloAB]];
+        fptype pwa_coefs_mag_khiAB       = cudaArray[indices[pwa_coefs_idx + twokhiAB]];
+        fptype pwa_coefs_phase_kloAB       = cudaArray[indices[pwa_coefs_idx + twokloAB + 1]];
+        fptype pwa_coefs_phase_khiAB       = cudaArray[indices[pwa_coefs_idx + twokhiAB + 1]];
+	fptype pwa_coefs_real_kloAB = pwa_coefs_mag_kloAB*cos(pwa_coefs_phase_kloAB);
+        fptype pwa_coefs_real_khiAB = pwa_coefs_mag_khiAB*cos(pwa_coefs_phase_khiAB);
+        fptype pwa_coefs_imag_kloAB = pwa_coefs_mag_kloAB*sin(pwa_coefs_phase_kloAB);
+        fptype pwa_coefs_imag_khiAB = pwa_coefs_mag_khiAB*sin(pwa_coefs_phase_khiAB);
+
         fptype pwa_coefs_prime_real_kloAB = cDeriatives[twokloAB];
         fptype pwa_coefs_prime_real_khiAB = cDeriatives[twokhiAB];
         fptype pwa_coefs_prime_imag_kloAB = cDeriatives[twokloAB + 1];
@@ -750,18 +755,21 @@ __host__ void Spline::recalculateCache() const {
     const unsigned nKnobs = params.size() / 2;
     std::vector<fpcomplex> y(nKnobs);
     unsigned int i = 0;
+    fptype prevvalue = 0;
     for(auto v = params.begin(); v != params.end(); ++v, ++i) {
         unsigned int idx = i / 2;
         fptype value     = host_params[v->getIndex()];
-        if(i % 2 == 0)
-            y[idx].real(value);
-        else
-            y[idx].imag(value);
+        if(i % 2 == 1){
+            y[idx].real(prevvalue*cos(value));
+            y[idx].imag(prevvalue*sin(value));
+	}
+	prevvalue=value;
     }
     std::vector<fptype> y2_flat = flatten(complex_derivative(host_constants, y));
 
     MEMCPY_TO_SYMBOL(cDeriatives, y2_flat.data(), 2 * nKnobs * sizeof(fptype), 0, cudaMemcpyHostToDevice);
-}
+
+    }
 
 Bes::Bes(std::string name,
                    Variable ar,
