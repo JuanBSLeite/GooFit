@@ -244,7 +244,7 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
    
         // RBW evaluation
         fptype A = -mass2 + POW2(resmass) ;
-        fptype B = -resmass * Width ;
+        fptype B = resmass * Width ;
         fptype C = 1.0 / (POW2(A) + POW2(B));
         fpcomplex _BW(A * C, B * C); 
 
@@ -388,6 +388,66 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
     fptype g2                 = cudaArray[indices[4]];
     unsigned int cyclic_index = indices[5];
     unsigned int doSwap       = indices[6];
+
+    fptype pipmass = 0.13957018;
+    fptype pi0mass = 0.1349766;
+    fptype kpmass  = 0.493677;
+    fptype k0mass  = 0.497614;
+
+    fptype twopimasssq  = 4 * pipmass * pipmass;
+    fptype twopi0masssq = 4 * pi0mass * pi0mass;
+    fptype twokmasssq   = 4 * kpmass * kpmass;
+    fptype twok0masssq  = 4 * k0mass * k0mass;
+
+    fpcomplex ret(0., 0.);
+    for(int i = 0; i < 1 + doSwap; i++) {
+        fptype rhopipi_real = 0, rhopipi_imag = 0;
+        fptype rhokk_real = 0, rhokk_imag = 0;
+
+        fptype s = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
+
+        if(s >= twopimasssq)
+            rhopipi_real += (2. / 3) * sqrt(1 - twopimasssq / s); // Above pi+pi- threshold
+        else
+            rhopipi_imag += (2. / 3) * sqrt(-1 + twopimasssq / s);
+        if(s >= twopi0masssq)
+            rhopipi_real += (1. / 3) * sqrt(1 - twopi0masssq / s); // Above pi0pi0 threshold
+        else
+            rhopipi_imag += (1. / 3) * sqrt(-1 + twopi0masssq / s);
+        if(s >= twokmasssq)
+            rhokk_real += 0.5 * sqrt(1 - twokmasssq / s); // Above K+K- threshold
+        else
+            rhokk_imag += 0.5 * sqrt(-1 + twokmasssq / s);
+        if(s >= twok0masssq)
+            rhokk_real += 0.5 * sqrt(1 - twok0masssq / s); // Above K0K0 threshold
+        else
+            rhokk_imag += 0.5 * sqrt(-1 + twok0masssq / s);
+		
+        fptype A = (resmass * resmass - s) + resmass * (rhopipi_imag * g1 + rhokk_imag * g2);
+        fptype B = resmass * (rhopipi_real * g1 + rhokk_real * g2);
+        fptype C = 1.0 / (A * A + B * B);
+        fpcomplex retur(A * C, B * C);
+        ret += retur;
+        if(doSwap) {
+            fptype swpmass = m12;
+            m12            = m13;
+            m13            = swpmass;
+        }
+    }
+
+    return ret;
+}
+
+
+
+/*
+__device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
+    // indices[1] is unused constant index, for consistency with other function types.
+    fptype resmass            = cudaArray[indices[2]];
+    fptype g1                 = cudaArray[indices[3]];
+    fptype g2                 = cudaArray[indices[4]];
+    unsigned int cyclic_index = indices[5];
+    unsigned int doSwap       = indices[6];
   
     fptype const mpi = 0.13956995;
     fptype const mpi0      = 0.1349766;
@@ -438,7 +498,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
 		fptype width2 = g2*rho2*resmass;
 		fptype widthTerm = width1 + width2;
 
-        fpcomplex retur(dMSq,-widthTerm);
+        fpcomplex retur(dMSq,widthTerm);
 
         fptype denomFactor = dMSq*dMSq + widthTerm*widthTerm;
 		fptype invDenomFactor = 1.0/denomFactor;
@@ -454,7 +514,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
     }
 
     return 0.4*ret;
-}
+}*/
 
 __device__ fpcomplex cubicspline(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
     fpcomplex ret(0, 0);
