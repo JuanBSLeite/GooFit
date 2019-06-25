@@ -296,17 +296,19 @@ class DalitzPlotter {
 
 
         for(unsigned int j = 0; j < pdfValues[0].size(); ++j) {
+            
             double currm12 = currData.getValue(m12, j);
             double currm13 = currData.getValue(m13, j);
 
-        
             dalitz_pdf_hist.Fill(currm12, currm13, pdfValues[0][j]);
             m12_pdf_hist.Fill(currm12, pdfValues[0][j]);
             m13_pdf_hist.Fill(currm13, pdfValues[0][j]);
             m23_pdf_hist.Fill( cpuGetM23(massSum,currm12, currm13) , pdfValues[0][j]);
+
             totalPdf += pdfValues[0][j];
         
         }
+
 
         TCanvas foo;
         foo.SetLogz(false);
