@@ -31,7 +31,7 @@ __device__ fptype twoBodyCMmom(fptype rMassSq, fptype d1m, fptype d2m) {
 
 
 
-__device__ fptype dampingFactorSquare(const fptype &cmmom, const int &spin, const fptype &mRadius) {
+/*__device__ fptype dampingFactorSquare(const fptype &cmmom, const int &spin, const fptype &mRadius) {
     fptype square = mRadius * mRadius * cmmom * cmmom;
     fptype dfsq   = 1 + square; // This accounts for spin 1
     // if (2 == spin) dfsq += 8 + 2*square + square*square; // Coefficients are 9, 3, 1.
@@ -40,9 +40,9 @@ __device__ fptype dampingFactorSquare(const fptype &cmmom, const int &spin, cons
     // Spin 3 and up not accounted for.
     // return dfsq;
     return (spin == 2) ? dfsqres : dfsq;
-}
+}*/
 
-/*__device__ fptype dampingFactorSquare(const fptype &cmmom, const int &spin, const fptype &mRadius) {
+__device__ fptype dampingFactorSquare(const fptype &cmmom, const int &spin, const fptype &mRadius) {
     fptype z = mRadius * mRadius * cmmom * cmmom;
     fptype dfsq   =sqrt(2.0*z/(z + 1.0)); // This accounts for spin 1
     // if (2 == spin) dfsq += 8 + 2*square + square*square; // Coefficients are 9, 3, 1.
@@ -51,7 +51,7 @@ __device__ fptype dampingFactorSquare(const fptype &cmmom, const int &spin, cons
     // Spin 3 and up not accounted for.
     // return dfsq;
     return (spin == 2) ? dfsqres : dfsq;
-}*/
+}
 
 __device__ fptype spinFactor(unsigned int spin,
                              fptype motherMass,
@@ -75,7 +75,7 @@ __device__ fptype spinFactor(unsigned int spin,
     fptype _mAB = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
 
     fptype massFactor = 1.0 / _mAB;
-    fptype sFactor    = 1;
+    fptype sFactor    = -1;
     sFactor *= ((_mBC - _mAC) + (massFactor * (motherMass * motherMass - _mC * _mC) * (_mA * _mA - _mB * _mB)));
 
     if(2 == spin) {
@@ -90,7 +90,7 @@ __device__ fptype spinFactor(unsigned int spin,
     return sFactor;
 }
 
-/*template <int I>
+template <int I>
 __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
     fptype c_motherMass   = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 0]);
     fptype c_daug1Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 1]);
@@ -107,7 +107,7 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
     fpcomplex result(0., 0.);
     fptype resmass2 = POW2(resmass);
 
-    #pragma unroll
+#pragma unroll
     for(int i = 0; i < I; i++) {
         fptype rMassSq    = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
         fptype rMass = sqrt(rMassSq);
@@ -135,99 +135,15 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
                            / dampingFactorSquare(q_2, spin, 5.);
         }
 
-        fptype gamma = resmass * reswidth * pow(q / q0 , 2.0 * spin + 1) * frFactor
-        / sqrt(rMassSq);
+	fptype gamma = resmass*reswidth*pow(q/q0, 2*spin + 1)*frFactor/sqrt(rMassSq);
         // RBW evaluation
         fptype A = (resmass2 - rMassSq);
-        fptype B = resmass*gamma ;
+        fptype B = resmass*gamma;
         fptype C = 1.0 / (POW2(A) + POW2(B));
 
         fpcomplex ret(A * C, B * C); // Dropping F_D=1
 
-        ret *= sqrt(frFactor*fdFactor)*resmass*gamma;
-        ret *= spinFactor(spin, c_motherMass, c_daug1Mass, c_daug2Mass, c_daug3Mass, m12, m13, m23, cyclic_index);
-
-        result += ret;
-                                          
-        if(I != 0) {
-            fptype swpmass = m12;
-            m12            = m13;
-            m13            = swpmass;
-        }
-    }
-
-    return result;
-}*/
-
-template <int I>
-__device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
-    fptype c_motherMass   = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 0]);
-    fptype c_daug1Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 1]);
-    fptype c_daug2Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 2]);
-    fptype c_daug3Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 3]);
-    fptype c_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
-
-    fptype resmass            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
-    fptype reswidth           = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
-    unsigned int spin         = RO_CACHE(indices[4]);
-    unsigned int cyclic_index = RO_CACHE(indices[5]);
-    unsigned int symmDP       = RO_CACHE(indices[6]);
-
-    fpcomplex result(0., 0.);
-    fptype resmass2 = POW2(resmass);
-
-    #pragma unroll
-    for(int i = 0; i < I; i++) {
-        fptype rMassSq    = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
-        fptype rMass = sqrt(rMassSq);
-        fptype mass_daug1 = PAIR_23 == cyclic_index ? c_daug2Mass : c_daug1Mass;
-        fptype mass_daug2 = PAIR_12 == cyclic_index ? c_daug2Mass : c_daug3Mass;
-        fptype mass_daug3 = PAIR_23 == cyclic_index ? c_daug1Mass : (PAIR_13 == cyclic_index?c_daug2Mass:c_daug3Mass);
-
-        fptype frFactor = 1;
-        fptype fdFactor = 1;
-        
-        fptype effResMass = resmass;
-	    fptype effResMassSq = resmass2;
-        if (resmass2 - POW2(mass_daug1+mass_daug2) < 0.0  || resmass > c_motherMass - mass_daug3){
-            fptype minMass = mass_daug1+mass_daug2;
-            fptype maxMass = c_motherMass - mass_daug3;
-            fptype tanhTerm = std::tanh( (resmass - ((minMass + maxMass)/2))/(maxMass-minMass));
-            effResMass = minMass + (maxMass-minMass)*(1+tanhTerm)/2;
-            effResMassSq = effResMass*effResMass;
-        }
-
-        // Calculate momentum of the two daughters in the resonance rest frame
-        // Note symmetry under interchange (dm1 <-> dm2)
-        
-        fptype q0 = twoBodyCMmom(effResMassSq, mass_daug1, mass_daug2, effResMass);
-        fptype q = twoBodyCMmom(rMassSq, mass_daug1, mass_daug2, rMass);
-        //fptype q = twoBodyCMmom(rMassSq, mass_daug1, mass_daug2);
-        //fptype q0  = twoBodyCMmom(effResMass, mass_daug1, mass_daug2);
-       
-        if(0 != spin) {
-            frFactor = dampingFactorSquare(q0, spin, c_meson_radius)
-                       / dampingFactorSquare(q, spin, c_meson_radius);
-
-
-            fptype p = twoBodyCMmom(c_motherMass*c_motherMass, rMass, mass_daug3, c_motherMass);
-            fptype p0 = twoBodyCMmom(c_motherMass*c_motherMass, effResMass, mass_daug3, c_motherMass);
-        
-            fdFactor =  dampingFactorSquare(p0, spin, 5.)
-                           / dampingFactorSquare(p, spin, 5.);
-            
-        }
-
-        fptype gamma = resmass * reswidth * pow(q / q0 , 2.0 * spin + 1) * frFactor
-        / sqrt(rMassSq);
-        // RBW evaluation
-        fptype A = (resmass2 - rMassSq);
-        fptype B = resmass*gamma ;
-        fptype C = 1.0 / (POW2(A) + POW2(B));
-
-        fpcomplex ret(A * C, B * C); // Dropping F_D=1
-
-        ret *= sqrt(frFactor*fdFactor)*resmass*gamma;
+        ret *= sqrt(frFactor*fdFactor);
         ret *= spinFactor(spin, c_motherMass, c_daug1Mass, c_daug2Mass, c_daug3Mass, m12, m13, m23, cyclic_index);
 
         result += ret;
@@ -665,7 +581,6 @@ __device__ fpcomplex cubicspline(fptype m12, fptype m13, fptype m23, unsigned in
     }
     return ret;
 }
-
 __device__ resonance_function_ptr ptr_to_RBW      = plainBW<1>;
 __device__ resonance_function_ptr ptr_to_RBW_SYM  = plainBW<2>;
 __device__ resonance_function_ptr ptr_to_GOUSAK   = gouSak<1>;
