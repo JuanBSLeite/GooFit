@@ -522,7 +522,7 @@ __device__ fpcomplex cubicspline(fptype m12, fptype m13, fptype m23, unsigned in
         mAC = m12;
         break;
     }
-    mAB = sqrt(mAB); mAC = sqrt(mAC); 
+    mAB = mAB; mAC = mAC; 
     int khiAB = 0, khiAC = 0;
     fptype dmKK, aa, bb, aa3, bb3;
     unsigned int timestorun = 1 + doSwap;
