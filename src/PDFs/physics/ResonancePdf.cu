@@ -31,7 +31,7 @@ __device__ fptype twoBodyCMmom(fptype rMassSq, fptype d1m, fptype d2m) {
 
 
 
-/*__device__ fptype dampingFactorSquare(const fptype &cmmom, const int &spin, const fptype &mRadius) {
+__device__ fptype dampingFactorSquare(const fptype &cmmom, const int &spin, const fptype &mRadius) {
     fptype square = mRadius * mRadius * cmmom * cmmom;
     fptype dfsq   = 1 + square; // This accounts for spin 1
     // if (2 == spin) dfsq += 8 + 2*square + square*square; // Coefficients are 9, 3, 1.
@@ -40,9 +40,9 @@ __device__ fptype twoBodyCMmom(fptype rMassSq, fptype d1m, fptype d2m) {
     // Spin 3 and up not accounted for.
     // return dfsq;
     return (spin == 2) ? dfsqres : dfsq;
-}*/
+}
 
-__device__ fptype dampingFactorSquare(const fptype &cmmom, const int &spin, const fptype &mRadius) {
+/*__device__ fptype dampingFactorSquare(const fptype &cmmom, const int &spin, const fptype &mRadius) {
     fptype z = mRadius * mRadius * cmmom * cmmom;
     fptype dfsq   =sqrt(2.0*z/(z + 1.0)); // This accounts for spin 1
     // if (2 == spin) dfsq += 8 + 2*square + square*square; // Coefficients are 9, 3, 1.
@@ -51,7 +51,7 @@ __device__ fptype dampingFactorSquare(const fptype &cmmom, const int &spin, cons
     // Spin 3 and up not accounted for.
     // return dfsq;
     return (spin == 2) ? dfsqres : dfsq;
-}
+}*/
 
 __device__ fptype spinFactor(unsigned int spin,
                              fptype motherMass,
@@ -75,7 +75,7 @@ __device__ fptype spinFactor(unsigned int spin,
     fptype _mAB = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
 
     fptype massFactor = 1.0 / _mAB;
-    fptype sFactor    = -1;
+    fptype sFactor    = 1;
     sFactor *= ((_mBC - _mAC) + (massFactor * (motherMass * motherMass - _mC * _mC) * (_mA * _mA - _mB * _mB)));
 
     if(2 == spin) {
@@ -143,7 +143,7 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
 
         fpcomplex ret(A * C, B * C); // Dropping F_D=1
 
-        ret *= sqrt(frFactor*fdFactor);
+        ret *= sqrt(frFactor*fdFactor)*resmass*gamma;
         ret *= spinFactor(spin, c_motherMass, c_daug1Mass, c_daug2Mass, c_daug3Mass, m12, m13, m23, cyclic_index);
 
         result += ret;
