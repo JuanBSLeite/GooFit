@@ -39,7 +39,7 @@ __device__ fptype dampingFactorSquare(const fptype &cmmom, const int &spin, cons
 
     // Spin 3 and up not accounted for.
     // return dfsq;
-    return (spin == 2) ? dfsqres : dfsq;
+    return (spin == 2) ? 1./dfsqres : 1./dfsq;
 }
 
 /*__device__ fptype dampingFactorSquare(const fptype &cmmom, const int &spin, const fptype &mRadius) {
@@ -125,14 +125,14 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
         fptype q = twoBodyCMmom(rMassSq, mass_daug1, mass_daug2, rMass);
 
         if(0 != spin) {
-            frFactor = dampingFactorSquare(q0, spin, c_meson_radius)
-                       / dampingFactorSquare(q, spin, c_meson_radius);
+            frFactor = dampingFactorSquare(q, spin, c_meson_radius)
+                       / dampingFactorSquare(q0, spin, c_meson_radius);
 
 
-            fptype q_2 = twoBodyCMmom(c_motherMass*c_motherMass, rMass, mass_daug3, c_motherMass);
-            fptype q0_2 = twoBodyCMmom(c_motherMass*c_motherMass, resmass, mass_daug3, c_motherMass);
-            fdFactor =  dampingFactorSquare(q0_2, spin, 5.)
-                           / dampingFactorSquare(q_2, spin, 5.);
+            fptype q_2 = twoBodyCMmom(c_motherMass*c_motherMass, rMass, mass_daug3,c_motherMass);
+            fptype q0_2 = twoBodyCMmom(c_motherMass*c_motherMass, resmass, mass_daug3,c_motherMass);
+            fdFactor =  dampingFactorSquare(q_2, spin, 5.)
+                           / dampingFactorSquare(q0_2, spin, 5.);
         }
 
 	fptype gamma = resmass*reswidth*pow(q/q0, 2*spin + 1)*frFactor/sqrt(rMassSq);
@@ -143,7 +143,7 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
 
         fpcomplex ret(A * C, B * C); // Dropping F_D=1
 
-        ret *= sqrt(frFactor*fdFactor)*resmass*gamma;
+        ret *= sqrt(frFactor*fdFactor);
         ret *= spinFactor(spin, c_motherMass, c_daug1Mass, c_daug2Mass, c_daug3Mass, m12, m13, m23, cyclic_index);
 
         result += ret;
@@ -831,18 +831,15 @@ __host__ void Spline::recalculateCache() const {
     auto params           = getParameters();
     const unsigned nKnobs = params.size() / 2;
     std::vector<fpcomplex> y(nKnobs);
-    fptype prev_real = 0;
-    fptype prev_img = 0;
     unsigned int i = 0;
     for(auto v = params.begin(); v != params.end(); ++v, ++i) {
         unsigned int idx = i / 2;
         fptype value     = host_params[v->getIndex()];
         if(i % 2 == 0){
-            y[idx].real(prev_real);
-            prev_real = value;
+            y[idx].real(value);
+           
         }else{
-            y[idx].imag(prev_img);
-            prev_img = value;
+            y[idx].imag(value);
         }
     }
     std::vector<fptype> y2_flat = flatten(complex_derivative(host_constants, y));
