@@ -657,6 +657,19 @@ __device__ fpcomplex cubicspline(fptype m12, fptype m13, fptype m23, unsigned in
     }
     return ret;
 }*/
+
+__device__ fpcomplex BE(fptype m12, fptype m13, fptype m23,unsigned int *indices){
+
+     
+    fptype coef            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
+    const fptype mpisq = 0.01947977;
+    fptype Q = sqrt(m23 - 4*mpisq);
+    fptype Omega = exp(-Q*coef);
+
+    return fpcomplex(Omega,0.);
+
+}
+
 __device__ resonance_function_ptr ptr_to_RBW      = plainBW<1>;
 __device__ resonance_function_ptr ptr_to_RBW_SYM  = plainBW<2>;
 __device__ resonance_function_ptr ptr_to_GOUSAK   = gouSak<1>;
@@ -666,6 +679,7 @@ __device__ resonance_function_ptr ptr_to_NONRES   = nonres;
 __device__ resonance_function_ptr ptr_to_LASS     = lass;
 __device__ resonance_function_ptr ptr_to_FLATTE   = flatte;
 __device__ resonance_function_ptr ptr_to_SPLINE   = cubicspline;
+__device__ resonance_function_ptr ptr_to_BoseEinstein = BE;
 
 namespace Resonances {
 
@@ -845,6 +859,16 @@ __host__ void Spline::recalculateCache() const {
     std::vector<fptype> y2_flat = flatten(complex_derivative(host_constants, y));
 
     MEMCPY_TO_SYMBOL(cDeriatives, y2_flat.data(), 2 * nKnobs * sizeof(fptype), 0, cudaMemcpyHostToDevice);
+}
+
+BoseEinstein::BoseEinstein(std::string name,Variable ar, Variable ai, Variable coef)
+    : ResonancePdf(name, ar, ai) {
+    pindices.push_back(registerParameter(coef));
+    GET_FUNCTION_ADDR(ptr_to_BoseEinstein);
+
+    initialize(pindices);
+
+    
 }
 
 } // namespace Resonances

@@ -136,6 +136,16 @@ class Spline : public ResonancePdf {
     /// Recacluate the CACHE values before running
     __host__ void recalculateCache() const override;
 };
+
+
+class BoseEinstein : public ResonancePdf {
+  public:
+   BoseEinstein(std::string name, Variable ar, Variable ai, Variable coef );
+    ~BoseEinstein() override = default;
+};
+
+
+
 } // namespace Resonances
 
 } // namespace GooFit

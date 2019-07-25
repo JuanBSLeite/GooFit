@@ -112,8 +112,7 @@ __device__ fptype device_DalitzPlot(fptype *evt, fptype *p, unsigned int *indice
     fptype eff         = callFunction(evt, RO_CACHE(indices[effFunctionIdx]), RO_CACHE(indices[effFunctionIdx + 1]));
     ret *= eff;
 
-    // printf("DalitzPlot evt %i zero: %i %i %f (%f, %f).\n", evtNum, numResonances, effFunctionIdx, eff, totalAmp.real,
-    // totalAmp.imag);
+     //printf("eff = %d", eff);
 
     return ret;
 }
@@ -447,7 +446,7 @@ __device__ fpcomplex SpecialResonanceIntegrator::operator()(thrust::tuple<int, f
     // go into the integrals. They've been squared already,
     // as it were.
     ret *= eff;
-    // printf("ret %f %f %f %f %f\n",binCenterM12, binCenterM13, ret.real, ret.imag, eff );
+    // printf("ret %f %f %f \n", ret.real(), ret.imag(), eff );
     return ret;
 }
 
@@ -483,7 +482,7 @@ __device__ fpcomplex SpecialResonanceCalculator::operator()(thrust::tuple<int, f
     unsigned int params_i = indices[parameter_i + 3];
 
     ret = getResonanceAmplitude(m12, m13, m23, functn_i, params_i);
-    // printf("Amplitude %f %f %f (%f, %f)\n ", m12, m13, m23, ret.real, ret.imag);
+     //printf("Amplitude %f %f %f (%f, %f)\n ", m12, m13, m23, ret.real(), ret.imag());
     return ret;
 }
 
