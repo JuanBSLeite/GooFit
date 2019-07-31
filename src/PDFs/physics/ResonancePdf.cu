@@ -100,12 +100,13 @@ __device__ fptype Form_Factor_Resonance_Decay(unsigned int &spin,const fptype &m
     
     if(spin == 2){
 
-		pstr0 = sqrt((mRsq - masq - mbsq)*(mRsq - masq - mbsq) - 4*masq*mbsq)/(2*mR);
+		pstr0 = sqrt(lambda(mRsq,masq,mbsq))/(2*mR);
+//sqrt((mRsq - masq - mbsq)*(mRsq - masq - mbsq) - 4*masq*mbsq)/(2*mR);
 		q2 = rR2*pstr0*pstr0;
 		fR0 = sqrt(9 + 3*q2 + q2*q2);
 
-		//pstr = sqrt(lambda(sab,masq,mbsq))/(2*sqrt(sab));
-		pstr = sqrt((sab - masq + mbsq)*(sab - masq + mbsq) - 4*sab*mbsq)/(2*sqrt(sab));
+		pstr = sqrt(lambda(sab,masq,mbsq))/(2*sqrt(sab));
+		//pstr = sqrt((sab - masq + mbsq)*(sab - masq + mbsq) - 4*sab*mbsq)/(2*sqrt(sab));
 		q2 = rR2*pstr*pstr;
 		fR = fR0/sqrt(9 + 3*q2 + q2*q2);
 
@@ -187,7 +188,7 @@ __device__ fptype spinFactor(unsigned int spin,
 
         fptype massFactor = 1.0 / _mAB;
         ret = ((_mBC - _mAC) + (massFactor * (motherMass * motherMass - _mC * _mC) * (_mA * _mA - _mB * _mB)));
-        ret *= -0.5;
+        //ret *= -0.5;
     }
     
     
@@ -199,7 +200,7 @@ __device__ fptype spinFactor(unsigned int spin,
         fptype a3 = ((_mAB - (2 * _mA * _mA) - (2 * _mB * _mB)) + massFactor * POW2(_mA * _mA - _mB * _mB));
         
         ret = POW2(a1) - a2*a3/3;
-        ret *= 3./8.;
+        //ret *= 3./8.;
     }
 
     return ret;
@@ -232,7 +233,7 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
 
         fptype fD = Form_Factor_Mother_Decay(spin, c_motherMass, rMassSq, POW2(mass_daug3), resmass);
         fptype fR = Form_Factor_Resonance_Decay(spin, resmass, rMassSq, POW2(mass_daug1), POW2(mass_daug2));
-	    fptype gamma = Gamma(spin, resmass, reswidth, rMass,  POW2(mass_daug1), POW2(mass_daug2));
+	fptype gamma = Gamma(spin, resmass, reswidth, rMass,  POW2(mass_daug1), POW2(mass_daug2));
         // RBW evaluation
         fptype A = (resmass2 - rMassSq);
         fptype B = resmass*gamma;
