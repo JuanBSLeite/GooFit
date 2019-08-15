@@ -78,6 +78,24 @@ class RBW : public ResonancePdf {
     ~RBW() override = default;
 };
 
+/// Rho-Omega Mixing Amplitude
+class RHOOMEGAMIX : public ResonancePdf {
+  public:
+    RHOOMEGAMIX(std::string name,
+        Variable ar,
+        Variable ai,
+        Variable rho_mass,
+        Variable rho_width,
+	Variable omega_mass,
+        Variable omega_width,
+	Variable magB,
+        Variable phsB,
+        unsigned int sp,
+        unsigned int cyc,
+        bool symmDP = false);
+    ~RHOOMEGAMIX() override = default;
+};
+
 /// LASS
 class LASS : public ResonancePdf {
   public:
@@ -137,6 +155,21 @@ class Spline : public ResonancePdf {
     __host__ void recalculateCache() const override;
 };
 
+class SplinePolar : public ResonancePdf {
+  public:
+    SplinePolar(std::string name,
+           Variable ar,
+           Variable ai,
+           std::vector<fptype> &HH_bin_limits,
+           std::vector<Variable> &pwa_coefs_reals,
+           std::vector<Variable> &pwa_coefs_imags,
+           unsigned int cyc,
+           bool symmDP = false);
+    ~SplinePolar() override = default;
+
+    /// Recacluate the CACHE values before running
+    __host__ void recalculateCache() const override;
+};
 
 class BoseEinstein : public ResonancePdf {
   public:
