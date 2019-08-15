@@ -78,6 +78,20 @@ class RBW : public ResonancePdf {
     ~RBW() override = default;
 };
 
+/// POLE
+class POLE : public ResonancePdf {
+  public:
+    POLE(std::string name,
+        Variable ar,
+        Variable ai,
+Variable real,
+        Variable img,
+        unsigned int sp,
+        unsigned int cyc,
+        bool symmDP = false);
+    ~POLE() override = default;
+};
+
 /// Rho-Omega Mixing Amplitude
 class RHOOMEGAMIX : public ResonancePdf {
   public:

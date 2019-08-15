@@ -256,6 +256,55 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
     return result;
 }
 
+template <int I>
+__device__ fpcomplex Pole(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
+    fptype c_motherMass   = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 0]);
+    fptype c_daug1Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 1]);
+    fptype c_daug2Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 2]);
+    fptype c_daug3Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 3]);
+    fptype c_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
+
+    fptype real            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
+    fptype img           = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
+    unsigned int spin         = RO_CACHE(indices[4]);
+    unsigned int cyclic_index = RO_CACHE(indices[5]);
+    unsigned int symmDP       = RO_CACHE(indices[6]);
+
+    fpcomplex result(0., 0.);
+    
+	printf("real = %f and img = %f \n",real,img);
+
+#pragma unroll
+    for(int i = 0; i < I; i++) {
+        fptype rMassSq    = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
+        fptype rMass = sqrt(rMassSq);
+        fptype mass_daug1 = PAIR_23 == cyclic_index ? c_daug2Mass : c_daug1Mass;
+        fptype mass_daug2 = PAIR_12 == cyclic_index ? c_daug2Mass : c_daug3Mass;
+        fptype mass_daug3 = PAIR_23 == cyclic_index ? c_daug1Mass : (PAIR_13 == cyclic_index?c_daug2Mass:c_daug3Mass);
+
+        fptype reTerm = real*real - img*img - rMassSq;
+        fptype imTerm = 2.0*real*img;
+
+	fptype scale = 1./(reTerm*reTerm + imTerm*imTerm);
+	fpcomplex ret(reTerm*scale,imTerm*scale);
+	
+
+	fptype angular = spinFactor(spin, c_motherMass, c_daug1Mass, c_daug2Mass, c_daug3Mass, m12, m13, m23, cyclic_index);
+	ret *= angular;
+	
+        result += ret;
+
+                                          
+        if(I != 0) {
+            fptype swpmass = m12;
+            m12            = m13;
+            m13            = swpmass;
+        }
+    }
+
+    return result;
+}
+
 __device__ fpcomplex gaussian(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
     // indices[1] is unused constant index, for consistency with other function types.
     fptype resmass            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
@@ -471,6 +520,7 @@ __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned in
     return result;
 
 }
+
 
 __device__ fpcomplex lass(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
     fptype motherMass   = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 0]);
@@ -812,6 +862,8 @@ __device__ fpcomplex BE(fptype m12, fptype m13, fptype m23,unsigned int *indices
 
 __device__ resonance_function_ptr ptr_to_RBW      = plainBW<1>;
 __device__ resonance_function_ptr ptr_to_RBW_SYM  = plainBW<2>;
+__device__ resonance_function_ptr ptr_to_POLE      = plainBW<1>;
+__device__ resonance_function_ptr ptr_to_POLE_SYM  = plainBW<2>;
 __device__ resonance_function_ptr ptr_to_GOUSAK   = gouSak<1>;
 __device__ resonance_function_ptr ptr_to_GOUSAK_SYM = gouSak<2>;
 __device__ resonance_function_ptr ptr_to_GAUSSIAN = gaussian;
@@ -845,6 +897,31 @@ RBW::RBW(std::string name,
         GET_FUNCTION_ADDR(ptr_to_RBW_SYM);
     } else {
         GET_FUNCTION_ADDR(ptr_to_RBW);
+    }
+
+    initialize(pindices);
+}
+
+
+POLE::POLE(std::string name,
+         Variable ar,
+         Variable ai,
+	Variable real,
+         Variable img,
+         unsigned int sp,
+         unsigned int cyc,
+         bool symmDP)
+    : ResonancePdf(name, ar, ai) {
+pindices.push_back(registerParameter(real));
+    pindices.push_back(registerParameter(img));
+    pindices.push_back(sp);
+    pindices.push_back(cyc);
+    pindices.push_back(symmDP);
+
+    if(symmDP) {
+        GET_FUNCTION_ADDR(ptr_to_POLE_SYM);
+    } else {
+        GET_FUNCTION_ADDR(ptr_to_POLE);
     }
 
     initialize(pindices);
