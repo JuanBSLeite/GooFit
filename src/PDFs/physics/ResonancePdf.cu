@@ -445,10 +445,11 @@ __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned in
   
     fpcomplex result(0., 0.);
     const	fptype mpi = 0.13957018;
-    fptype delta = 0.00215;
+    const 	fptype delta = 0.00215;
     fptype Delta_= delta*(rho_resmass + omega_resmass);
-    fpcomplex polar(mgB*cos(phsB),mgB*sin(phsB));
-    fpcomplex mix = Delta_*polar;
+    mgB *= Delta_;
+    fpcomplex Bterm(mgB*cos(phsB),mgB*sin(phsB));
+    fpcomplex unity(1.0,0.0);
     
 #pragma unroll
     for(int i = 0; i < I; i++) {
@@ -458,17 +459,25 @@ __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned in
         fptype mass_daug2 = PAIR_12 == cyclic_index ? c_daug2Mass : c_daug3Mass;
         fptype mass_daug3 = PAIR_23 == cyclic_index ? c_daug1Mass : (PAIR_13 == cyclic_index?c_daug2Mass:c_daug3Mass);
 
+	fptype angular = spinFactor(spin, c_motherMass, c_daug1Mass, c_daug2Mass, c_daug3Mass, m12, m13, m23, cyclic_index);
+
         // RBW evaluation
-	fptype gamma = Gamma(spin, omega_resmass, omega_reswidth, rMass,  POW2(mass_daug1), POW2(mass_daug2));
+	//fptype gamma = Gamma(spin, omega_resmass, omega_reswidth, rMass,  POW2(mass_daug1), POW2(mass_daug2));
+	fptype gamma = omega_reswidth;
         fptype A = (POW2(omega_resmass) - rMassSq);
         fptype B = omega_resmass*gamma;
         fptype C = 1.0 / (POW2(A) + POW2(B));
+        
 
         fpcomplex RBW(A * C, B * C); 
-	RBW*= mix;
+	
 	// End of RBW
 
 	// GouSak evaluation for rho
+
+       fptype fD = Form_Factor_Mother_Decay(spin, c_motherMass, rMassSq, POW2(mass_daug3), rho_resmass);
+       
+       fptype fR = Form_Factor_Resonance_Decay(spin, rho_resmass, rMassSq, POW2(mass_daug1), POW2(mass_daug2));
 
        fptype  mRSq_rho = POW2(rho_resmass);
 
@@ -492,23 +501,23 @@ __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned in
 
        fptype D  = massSqTerm + ff;
 
-       fptype gamma_rho = Gamma(spin, rho_resmass, rho_reswidth, rMass,  POW2(mass_daug1), POW2(mass_daug2));
+       fptype gamma_rho = Gamma(spin, rho_resmass, rho_reswidth, rMass,  POW2(mass_daug1), POW2(mass_daug2));	
 
        fptype E = rho_resmass*gamma_rho;
 
-       fptype F = 1./(D*D + E*E);
-    
-       fpcomplex unity(1.0,0.0); 
+       fptype F = 1./(D*D + E*E); 
 
        fpcomplex GouSak(D*F,E*F);
 
-       GouSak *= (1. + d_ * (rho_reswidth/rho_resmass) );
+       GouSak *= (unity + d_*(rho_reswidth/rho_resmass) )*angular*fD*fR;
 
        //end of Gousak
+
+       fpcomplex mixingTerm = Bterm*RBW + unity;
       
-       fptype angular = spinFactor(spin, c_motherMass, c_daug1Mass, c_daug2Mass, c_daug3Mass, m12, m13, m23, cyclic_index);
-       result += GouSak*(1.+RBW);
-       result += angular;
+       
+       result += GouSak*mixingTerm;
+       
                                           
         if(I != 0) {
             fptype swpmass = m12;
