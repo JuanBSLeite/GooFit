@@ -351,7 +351,7 @@ __host__ std::vector<std::vector<fptype>> DalitzPlotPdf::fit_fractions() {
 
     size_t n_res    = getDecayInfo().resonances.size();
     size_t nEntries = getCachedWave(0).size();
-
+	
     std::vector<fpcomplex> coefs(n_res);
     std::transform(getDecayInfo().resonances.begin(),
                    getDecayInfo().resonances.end(),
@@ -392,10 +392,16 @@ __host__ std::vector<std::vector<fptype>> DalitzPlotPdf::fit_fractions() {
     fptype total_PDF = buffer_all / nEntries;
 
     std::vector<std::vector<fptype>> ff(n_res, std::vector<fptype>(n_res));
-
-    for(size_t i = 0; i < n_res; i++)
-        for(size_t j = 0; j < n_res; j++)
-            ff[i][j] = (Amps_int[i][j] / total_PDF);
+    printf("Fit Fractions: \n");
+    for(size_t i = 0; i < n_res; i++){
+        for(size_t j = 0; j < n_res; j++){
+            ff[i][j] = (Amps_int[i][j]/total_PDF);
+	    if(i==j){
+			    	
+		printf("Fit Fraction %d = %f \n",j,ff[i][j]);
+	    }
+	}
+    }
 
     return ff;
 }

@@ -39,35 +39,7 @@ class DalitzPlotter {
     double cpuGetM23(Variable massSum, double sij, double sik) { return (massSum.getValue() - sij - sik); }
 
     #if GOOFIT_ROOT_FOUND
-        void style(){
-            TStyle *myStyle= new TStyle( "myStyle", "Josue (LHCb) official plots style" );
-            Double_t lhcbWidth = 3;
-            myStyle->SetPadColor(0);
-            myStyle->SetCanvasColor(0);
-            myStyle->SetStatColor(0); 
-            myStyle->SetLineWidth(lhcbWidth);
-            myStyle->SetFrameLineWidth(lhcbWidth);
-            myStyle->SetHistLineWidth(lhcbWidth);
-            myStyle->SetFuncWidth(lhcbWidth);
-            myStyle->SetGridWidth(lhcbWidth);
-            myStyle->SetMarkerStyle(8);
-            myStyle->SetMarkerSize(1.5);
-            myStyle->SetPadTickX(1);            
-            myStyle->SetPadTickY(1);   
-            myStyle->SetOptStat(0); 
-            myStyle->SetOptFit(1111111);
-            const Int_t NRGBs = 5;
-            const Int_t NCont = 255;
-            Double_t stops[NRGBs] = { 0.00, 0.34, 0.61, 0.84, 1.00 };
-            Double_t red[NRGBs]   = { 0.00, 0.00, 0.87, 1.00, 0.51 };
-            Double_t green[NRGBs] = { 0.00, 0.81, 1.00, 0.20, 0.00 };
-            Double_t blue[NRGBs]  = { 0.51, 1.00, 0.12, 0.00, 0.00 };
-            TColor::CreateGradientColorTable(NRGBs, stops, red, green, blue, NCont);
-            gStyle->SetNumberContours(NCont);
-            gROOT->SetStyle("myStyle");
-        }
-
-        void drawFitPlotsWithPulls(TH1 *hd, TH1 *ht, std::string plotdir) {
+    void drawFitPlotsWithPulls(TH1 *hd, TH1 *ht, std::string plotdir) {
                 
                 const char *hname = hd->GetName();
                 char obsname[10];
@@ -81,18 +53,18 @@ class DalitzPlotter {
                 }
                 ht->Scale(hd->Integral() / ht->Integral());
                 ht->SetLineColor(kRed);
-                ht->SetLineWidth(3);
-                //hd->SetMarkerStyle(15);
+                ht->SetLineWidth(2);
+                
 
                 hd->SetMarkerColor(kBlue);
-                hd->SetFillColor(kBlue);
+                //hd->SetFillColor(kBlue);
                 //hd->Rebin(20);
 
 
-                TCanvas foo;
+                TCanvas foo("foo","",1020,720);
 
-                hd->Draw("HIST");
-                ht->Draw("HIST  same");
+                hd->Draw("E");
+                ht->Draw("HISTsame");
 
 
                 foo.SaveAs( (plotdir+"/"+obsname+"_fit.png").c_str()    );
@@ -220,25 +192,25 @@ class DalitzPlotter {
     void Plot(double Mother_mass,double d1_mass,double d2_mass,double d3_mass, std::string sij, std::string sik , std::string sjk , std::string plotdir,UnbinnedDataSet data) {
         
 
-        m12.setNumBins(120);
-        m13.setNumBins(120);
-        TH1F m12_dat_hist("m12_dat_hist", "", m12.getNumBins(), 0.01*m12.getLowerLimit(), m12.getUpperLimit());
+        m12.setNumBins(300);
+        m13.setNumBins(300);
+        TH1F m12_dat_hist("s12_dat_hist", "", m12.getNumBins(), 0.01*m12.getLowerLimit(), m12.getUpperLimit());
         m12_dat_hist.GetXaxis()->SetTitle( (sij+"[GeV]^{2}").c_str());
         m12_dat_hist.GetYaxis()->SetTitle("Events");
 
-        TH1F m12_pdf_hist("m12_pdf_hist", "", m12.getNumBins(), 0.01*m12.getLowerLimit(), m12.getUpperLimit());
+        TH1F m12_pdf_hist("s12_pdf_hist", "", m12.getNumBins(), 0.01*m12.getLowerLimit(), m12.getUpperLimit());
 
-        TH1F m13_dat_hist("m13_dat_hist", "", m13.getNumBins(), 0.01*m13.getLowerLimit(), m13.getUpperLimit());
+        TH1F m13_dat_hist("s13_dat_hist", "", m13.getNumBins(), 0.01*m13.getLowerLimit(), m13.getUpperLimit());
         m13_dat_hist.GetXaxis()->SetTitle( (sik+"[GeV]^{2}").c_str());
         m13_dat_hist.GetYaxis()->SetTitle("Events");
 
-        TH1F m13_pdf_hist("m13_pdf_hist", "", m13.getNumBins(), m13.getLowerLimit(), m13.getUpperLimit());
+        TH1F m13_pdf_hist("s13_pdf_hist", "", m13.getNumBins(), m13.getLowerLimit(), m13.getUpperLimit());
 
-        TH1F m23_dat_hist("m23_dat_hist", "", m13.getNumBins(), 0.01*m13.getLowerLimit(), m13.getUpperLimit());
+        TH1F m23_dat_hist("s23_dat_hist", "", m13.getNumBins(), 0.01*m13.getLowerLimit(), m13.getUpperLimit());
         m23_dat_hist.GetXaxis()->SetTitle( (sjk+"[GeV]^{2}").c_str());
         m23_dat_hist.GetYaxis()->SetTitle("Events");
 
-        TH1F m23_pdf_hist("m23_pdf_hist", "", m13.getNumBins(), 0.01*m13.getLowerLimit(), m13.getUpperLimit());
+        TH1F m23_pdf_hist("s23_pdf_hist", "", m13.getNumBins(), 0.01*m13.getLowerLimit(), m13.getUpperLimit());
 
         double totalPdf = 0;
         double totalDat = 0;
@@ -310,8 +282,8 @@ class DalitzPlotter {
         }
 
 
-        TCanvas foo;
-        foo.SetLogz(false);
+        TCanvas foo("foo","",1020,720);
+        foo.SetLogz(true);
         dalitz_pdf_hist.Draw("colz");
 
         foo.SaveAs("plots/dalitz_pdf.png");
@@ -333,6 +305,73 @@ class DalitzPlotter {
         drawFitPlotsWithPulls(&m13_dat_hist, &m13_pdf_hist, plotdir);
         drawFitPlotsWithPulls(&m23_dat_hist, &m23_pdf_hist, plotdir);
     }
+
+    void chi2(size_t npar, std::string bins_file, float min_x, float max_x,float min_y, float max_y, size_t N,UnbinnedDataSet data,UnbinnedDataSet toyMC ){
+
+	auto dp_data = new TH2Poly("dp_data","",min_x,max_x,min_y,max_y);
+	auto dp_toy = new TH2Poly("dp_toy","",min_x,max_x,min_y,max_y);
+	auto dp_pdf = new TH2Poly("dp_pdf","",min_x,max_x,min_y,max_y);
+        auto residuals = new TH2Poly("dp_pdf","",min_x,max_x,min_y,max_y);
+	auto Proj = new TH1F("projection","",50,-5.,+5.);
+
+	std::ifstream w(bins_file.c_str());
+	double min1,max1,min2,max2;
+	
+	while(w>>min1>>min2>>max1>>max2){
+		dp_data->AddBin(min1,max1,min2,max2);
+		dp_toy->AddBin(min1,max1,min2,max2);
+		dp_pdf->AddBin(min1,max1,min2,max2);
+		residuals->AddBin(min1,max1,min2,max2);
+	}
+
+	//fill dp_data
+	for(size_t i = 0; i < data.getNumEvents(); i++){
+		data.loadEvent(i);
+		if(m12.getValue()<m13.getValue()){
+			dp_data->Fill(m12.getValue(),m13.getValue());
+		}
+	}
+
+	//fill dp_toy(pdf);
+	for(size_t i = 0; i < toyMC.getNumEvents(); i++){
+		toyMC.loadEvent(i);
+		if(m12.getValue()<m13.getValue()){
+			dp_toy->Fill(m12.getValue(),m13.getValue());
+			dp_pdf->Fill(m12.getValue(),m13.getValue());
+		}
+	}
+        double scale = double(data.getNumEvents())/double(toyMC.getNumEvents());
+	dp_pdf->Scale(scale);
+
+	//number of adaptative bins
+	size_t nbins = dp_toy->GetNumberOfBins();
+	fptype chi2 = 0;
+	for(size_t i = 1; i <= nbins ; ++i){
+		auto diff = dp_pdf->GetBinContent(i) - dp_data->GetBinContent(i);
+		auto errSq  = pow( (dp_pdf->GetBinContent(i)/dp_toy->GetBinContent(i))*dp_toy->GetBinError(i),2) + dp_data->GetBinContent(i);
+		chi2 += diff*diff/errSq;
+		residuals->SetBinContent(i,diff/sqrt(errSq));
+                Proj->Fill(diff/sqrt(dp_pdf->GetBinContent(i)));
+       
+	}
+
+	TCanvas foo("foo","",1020,720);
+	residuals->Draw("colz");
+	gStyle->SetOptStat(0);
+	foo.SaveAs("plots/residuals.png");
+
+	gStyle->SetOptFit(1111);
+	Proj->Fit("gaus");
+	Proj->Draw("E");
+	foo.SaveAs("plots/Residuals_proj.png");
+
+	fptype ndof = nbins - npar -1;
+
+	std::cout << "chi2/ndof is within the range [" << (chi2/ndof) << " - " << (chi2/(nbins-1)) << "] and the p-value is [" << TMath::Prob(chi2,ndof) << " - " << TMath::Prob(chi2,nbins-1)<< "]" << std::endl;	
+	
+	
+}
+
 #endif
 };
 
