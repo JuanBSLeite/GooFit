@@ -1079,6 +1079,42 @@ Spline::Spline(std::string name,
     initialize(pindices);
 }
 
+SplinePolar::SplinePolar(std::string name,
+               Variable ar,
+               Variable ai,
+               std::vector<fptype> &HH_bin_limits,
+               std::vector<Variable> &pwa_coefs_reals,
+               std::vector<Variable> &pwa_coefs_imags,
+               unsigned int cyc,
+               bool symmDP)
+    : ResonancePdf(name, ar, ai) {
+    std::vector<unsigned int> pindices;
+    const unsigned int nKnobs = HH_bin_limits.size();
+    host_constants.resize(nKnobs);
+
+    pindices.push_back(0);
+    pindices.push_back(cyc);
+    pindices.push_back((unsigned int)symmDP);
+    pindices.push_back(nKnobs);
+
+    for(int i = 0; i < pwa_coefs_reals.size(); i++) {
+        host_constants[i] = HH_bin_limits[i];
+        pindices.push_back(registerParameter(pwa_coefs_reals[i]));
+        pindices.push_back(registerParameter(pwa_coefs_imags[i]));
+    }
+    pindices.push_back(registerConstants(nKnobs));
+
+    MEMCPY_TO_SYMBOL(functorConstants,
+                     host_constants.data(),
+                     nKnobs * sizeof(fptype),
+                     cIndex * sizeof(fptype),
+                     cudaMemcpyHostToDevice);
+
+    GET_FUNCTION_ADDR(ptr_to_SPLINE_POLAR);
+
+    initialize(pindices);
+}
+
 __host__ void SplinePolar::recalculateCache() const {
     auto params           = getParameters();
     const unsigned nKnobs = params.size() / 2;
