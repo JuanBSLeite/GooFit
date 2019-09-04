@@ -351,7 +351,8 @@ __host__ std::vector<std::vector<fptype>> DalitzPlotPdf::fit_fractions() {
 
     size_t n_res    = getDecayInfo().resonances.size();
     size_t nEntries = getCachedWave(0).size();
-	
+    printf("n_res = %d \n", n_res);
+    printf("n_entries = %d \n",nEntries);	
     std::vector<fpcomplex> coefs(n_res);
     std::transform(getDecayInfo().resonances.begin(),
                    getDecayInfo().resonances.end(),
