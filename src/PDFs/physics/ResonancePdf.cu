@@ -188,7 +188,7 @@ __device__ fptype spinFactor(unsigned int spin,
 
         fptype massFactor = 1.0 / _mAB;
         ret = ((_mBC - _mAC) + (massFactor * (motherMass * motherMass - _mC * _mC) * (_mA * _mA - _mB * _mB)));
-        ret *= -0.5;
+        
     }
     
     
@@ -200,7 +200,7 @@ __device__ fptype spinFactor(unsigned int spin,
         fptype a3 = ((_mAB - (2 * _mA * _mA) - (2 * _mB * _mB)) + massFactor * POW2(_mA * _mA - _mB * _mB));
         
         ret = POW2(a1) - a2*a3/3;
-        ret *= 3./8.;
+        
     }
 
     return ret;
