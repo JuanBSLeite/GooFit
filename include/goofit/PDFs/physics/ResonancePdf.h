@@ -193,6 +193,28 @@ class BoseEinstein : public ResonancePdf {
 
 
 
+#if GOOFIT_KMATRIX
+        class kMatrix : public ResonancePdf{
+  public:
+    kMatrix(std::string name,
+            Variable ar,
+            Variable ai,
+            Variable sA0,
+            Variable sA,
+            Variable s0_prod,
+            Variable s0_scatt,
+            std::array<Variable, 5> f,
+            std::array<Variable, 5 * 6> poles,
+            unsigned int pterm, //< 0 or 1
+            bool is_pole,       //< False for prod
+            unsigned int L,
+            unsigned int Mpair,
+            bool symmdp);
+
+    ~kMatrix() override = default;
+};
+#endif
+
 } // namespace Resonances
 
 } // namespace GooFit
