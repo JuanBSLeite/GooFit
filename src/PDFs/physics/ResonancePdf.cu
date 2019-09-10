@@ -869,12 +869,12 @@ __device__ fpcomplex BE(fptype m12, fptype m13, fptype m23,unsigned int *indices
 
 
 
-__device__ fptype phsp_twoBody(fptype s, fptype m0, fptype m1) { return sqrt(1. - POW2(m0 + m1) / s); }
+__device__ fptype phsp_twobody(fptype s, fptype m0, fptype m1) { return sqrt(1. - POW2(m0 + m1) / s); }
 
 
-__device__ fptype phsp_fourPi(fptype s) {
+__device__ fptype phsp_fourpi(fptype s) {
 if(s > 1)
-return phsp_twoBody(s, 2 * mPiPlus, 2 * mPiPlus);
+return phsp_twobody(s, 2 * mPiPlus, 2 * mPiPlus);
 else
 return 0.00051 + -0.01933 * s + 0.13851 * s * s + -0.20840 * s * s * s + -0.29744 * s * s * s * s
 + 0.13655 * s * s * s * s * s + 1.07885 * s * s * s * s * s * s;
@@ -987,8 +987,8 @@ __device__ fpcomplex kMatrixFunction(fptype m12, fptype m13, fptype m23, unsigne
     fptype adlerTerm = (1. - sA0) * (s - sA * mPiPlus * mPiPlus / 2) / (s - sA0);
 
     Eigen::Matrix<fptype, 5, 1> phaseSpace;
-    phaseSpace << phsp_twoBody(s, mPiPlus, mPiPlus), phsp_twoBody(s, mKPlus, mKPlus), phsp_fourPi(s),
-        phsp_twoBody(s, mEta, mEta), phsp_twoBody(s, mEta, mEtap);
+    phaseSpace << phsp_twobody(s, mPiPlus, mPiPlus), phsp_twobody(s, mKPlus, mKPlus), phsp_fourpi(s),
+        phsp_twobody(s, mEta, mEta), phsp_twobody(s, mEta, mEtap);
 
     Eigen::Array<fpcomplex, NCHANNELS, NCHANNELS> F = getPropagator(kMatrix, phaseSpace, adlerTerm);
 
