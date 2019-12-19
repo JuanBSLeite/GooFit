@@ -56,7 +56,7 @@ __device__ fptype  lambda (const fptype &x,const fptype &y,const fptype &z){
 	fptype l;
 	l = (x - y - z)*(x - y - z) - 4*y*z;
       	
-	return l;//>=0? l : 1 ;
+	return l>=0? l : 1 ;
 
 }
 
