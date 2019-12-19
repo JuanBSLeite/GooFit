@@ -9,13 +9,17 @@
 #include <numeric>
 #include <random>
 #include <string>
+#include <fstream>
 
 #if GOOFIT_ROOT_FOUND
 #include <TH2.h>
 #include <TH1.h>
 #include <TStyle.h>
 #include <TColor.h>
-
+#include <TH2Poly.h>
+#include <TMath.h>
+#include <TCanvas.h>
+#include <TRandom3.h>
 #endif
 
 namespace GooFit {
@@ -308,11 +312,11 @@ class DalitzPlotter {
 
     void chi2(size_t npar, std::string bins_file, float min_x, float max_x,float min_y, float max_y, size_t N,UnbinnedDataSet data,UnbinnedDataSet toyMC ){
 
-	auto dp_data = new TH2Poly("dp_data","",min_x,max_x,min_y,max_y);
-	auto dp_toy = new TH2Poly("dp_toy","",min_x,max_x,min_y,max_y);
-	auto dp_pdf = new TH2Poly("dp_pdf","",min_x,max_x,min_y,max_y);
-        auto residuals = new TH2Poly("dp_pdf","",min_x,max_x,min_y,max_y);
-	auto Proj = new TH1F("projection","",50,-5.,+5.);
+        TH2Poly* dp_data = new TH2Poly("dp_data","",min_x,max_x,min_y,max_y);
+	       TH2Poly*  dp_toy = new TH2Poly("dp_toy","",min_x,max_x,min_y,max_y);
+	       TH2Poly*  dp_pdf = new TH2Poly("dp_pdf","",min_x,max_x,min_y,max_y);
+               TH2Poly*  residuals = new TH2Poly("dp_pdf","",min_x,max_x,min_y,max_y);
+	       TH1F* Proj = new TH1F("projection","",50,-5.,+5.);
 
 	std::ifstream w(bins_file.c_str());
 	double min1,max1,min2,max2;

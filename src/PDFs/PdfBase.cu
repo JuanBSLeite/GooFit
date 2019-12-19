@@ -190,13 +190,15 @@ __host__ void PdfBase::setData(DataSet *data) {
         int fixme[observables.size()];
         memset(fixme, 0, sizeof(int) * observables.size());
 
-        for(int i = 0; i < observables.size(); i++) {
+	int idx=0;
+        for(auto o: observables) {
             // We are casting the observable to a CountVariable
-            CountingVariable *c = dynamic_cast<CountingVariable *>(observables[i]);
+            //EventNumber *c = dynamic_cast<CountingVariable *>(observables[i]);
 
             // if it is true re-index
-            if(c)
-                fixme[i] = 1;
+           // if(c)
+                fixme[idx] = o.isEventNumber();
+		idx++;
         }
 
 #endif
@@ -281,14 +283,15 @@ __host__ void PdfBase::setData(DataSet *data) {
         // This is an array to track if we need to re-index the observable
         int fixme[observables.size()];
         memset(fixme, 0, sizeof(int) * observables.size());
-
-        for(int i = 0; i < observables.size(); i++) {
+	int idx = 0;
+        for(auto o: observables) {
             // We are casting the observable to a CountVariable
-            CountingVariable *c = dynamic_cast<CountingVariable *>(observables[i]);
+            //CountingVariable *c = dynamic_cast<CountingVariable *>(observables[i]);
 
             // if it is true re-index
-            if(c)
-                fixme[i] = 1;
+           // if(c)
+                fixme[idx] = o.isEventNumber();
+		idx++;
         }
 
 #endif

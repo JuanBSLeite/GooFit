@@ -55,8 +55,8 @@ __device__ fptype  lambda (const fptype &x,const fptype &y,const fptype &z){
 
 	fptype l;
 	l = (x - y - z)*(x - y - z) - 4*y*z;
-	
-	return l;
+      	
+	return l;//>=0? l : 1 ;
 
 }
 
@@ -293,7 +293,6 @@ __device__ fpcomplex Pole(fptype m12, fptype m13, fptype m23, unsigned int *indi
 
     fpcomplex result(0., 0.);
     
-	printf("real = %f and img = %f \n",real,img);
 
 #pragma unroll
     for(int i = 0; i < I; i++) {
