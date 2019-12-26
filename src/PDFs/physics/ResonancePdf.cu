@@ -367,7 +367,6 @@ __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned in
     const fptype omega_width = 0.00849; 
 
     fptype Delta_= delta*(rho_mass + omega_mass);
-    mgB *= Delta_;
     fpcomplex Bterm(real,img);
     fpcomplex unity(1.0,0.0);
     
@@ -840,8 +839,8 @@ RHOOMEGAMIX::RHOOMEGAMIX(std::string name,
          unsigned int cyc,
          bool symmDP)
     : ResonancePdf(name, ar, ai) {
-    pindices.push_back(registerParameter(magB));
-    pindices.push_back(registerParameter(phsB));
+    pindices.push_back(registerParameter(real));
+    pindices.push_back(registerParameter(img));
     pindices.push_back(registerParameter(delta));
     pindices.push_back(sp);
     pindices.push_back(cyc);
