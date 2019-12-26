@@ -368,7 +368,7 @@ __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned in
 
     fptype Delta_= delta*(rho_mass + omega_mass);
     fpcomplex Bterm(real,img);
-    Bterm*=Delta;
+    Bterm*=Delta_;
     fpcomplex unity(1.0,0.0);
     
 #pragma unroll
@@ -571,7 +571,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
         }
     }
 
-    return ret;
+    return (g1>0 && g2>0) ? ret : 0.;
 }
 
 //From GooFit
