@@ -18,6 +18,8 @@ namespace GooFit {
 
 __device__ fptype cDeriatives[2 * MAXNKNOBS];
 
+
+//from Grace Young - New Package for RooFit Supporting Dalitz Analysis
 __device__ fptype Momentum( const fptype &m,
                             const fptype &m1,
                             const fptype &m2
@@ -33,6 +35,7 @@ __device__ fptype Momentum( const fptype &m,
     return q;
 }
 
+//from Grace Young - New Package for RooFit Supporting Dalitz Analysis
 __device__ fptype BWFactors(const fptype &q,const fptype &q0, unsigned int &spin , const fptype &meson_radius){
 
     fptype R = meson_radius;
@@ -53,6 +56,7 @@ __device__ fptype BWFactors(const fptype &q,const fptype &q0, unsigned int &spin
 
 }
 
+//from Grace Young - New Package for RooFit Supporting Dalitz Analysis
 __device__ fptype Gamma(const fptype &m,
                         const fptype &m0,
                         const fptype &width, 
@@ -78,7 +82,7 @@ __device__ fptype Gamma(const fptype &m,
                         return g;
 }
 
-//gounaris
+
 
 __device__ fptype h(const fptype &m,const fptype &q){
     const fptype mpi = 0.13957018;
@@ -100,6 +104,7 @@ __device__ fptype f(const fptype &m, const fptype &m0,const fptype &width , cons
     return width*(POW2(m0)/POW2(q0)*q0)*( POW2(q)*(h(m,q)-h(m0,q0)) + (POW2(m0)-POW2(m))*q0*q0*h_prime(m0,q0));
 }
 
+//from Grace Young - New Package for RooFit Supporting Dalitz Analysis
 __device__ fptype spinFactor(unsigned int spin,
                              fptype motherMass,
                              fptype daug1Mass,
@@ -148,6 +153,7 @@ __device__ fptype spinFactor(unsigned int spin,
     return ret;
 }
 
+//from Grace Young - New Package for RooFit Supporting Dalitz Analysis
 template <int I>
 __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
     fptype c_motherMass   = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 0]);
@@ -201,6 +207,7 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
     return result;
 }
 
+//from Laura++
 template <int I>
 __device__ fpcomplex Pole(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
     fptype c_motherMass   = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 0]);
@@ -251,6 +258,7 @@ __device__ fpcomplex Pole(fptype m12, fptype m13, fptype m23, unsigned int *indi
     return result;
 }
 
+//from GooFit
 __device__ fpcomplex gaussian(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
     // indices[1] is unused constant index, for consistency with other function types.
     fptype resmass            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
@@ -269,6 +277,7 @@ __device__ fpcomplex gaussian(fptype m12, fptype m13, fptype m23, unsigned int *
     return {ret, 0};
 }
 
+//from B ± → π ± π +π  amplitude analysis on run1 data paper
 template<int I>
 __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
     fptype c_motherMass   = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 0]);
@@ -332,6 +341,7 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
     return result;
 }
 
+//from B ± → π ± π +π  amplitude analysis on run1 data paper and Laura++
 template<int I>
 __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned int *indices){
     
@@ -341,8 +351,8 @@ __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned in
     fptype c_daug3Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 3]);
     fptype c_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
 
-    fptype mgB            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
-    fptype phsB           = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
+    fptype real            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
+    fptype img           = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
     fptype delta           = RO_CACHE(cudaArray[RO_CACHE(indices[4])]);
 
     unsigned int spin         = RO_CACHE(indices[5]);
@@ -358,7 +368,7 @@ __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned in
 
     fptype Delta_= delta*(rho_mass + omega_mass);
     mgB *= Delta_;
-    fpcomplex Bterm(mgB*cos(phsB),mgB*sin(phsB));
+    fpcomplex Bterm(real,img);
     fpcomplex unity(1.0,0.0);
     
 #pragma unroll
@@ -415,7 +425,7 @@ __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned in
 
 }
 
-
+//from GooFit
 __device__ fpcomplex lass(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
     fptype motherMass   = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 0]);
     fptype m1    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 1]);
@@ -484,7 +494,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
     // indices[1] is unused constant index, for consistency with other function types.
     fptype resmass            = cudaArray[indices[2]];
     fptype g1                 = cudaArray[indices[3]];
-    fptype g2                 = cudaArray[indices[4]]*g1;
+    fptype g2                 = cudaArray[indices[4]];
     unsigned int cyclic_index = indices[5];
     unsigned int doSwap       = indices[6];
 
@@ -564,6 +574,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
     return ret;
 }
 
+//From GooFit
 __device__ fpcomplex cubicspline(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
     fpcomplex ret(0, 0);
     unsigned int cyclic_index        = indices[2];
@@ -640,6 +651,7 @@ __device__ fpcomplex cubicspline(fptype m12, fptype m13, fptype m23, unsigned in
     return ret;
 }
 
+//from GooFit
 __device__ fpcomplex cubicsplinePolar(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
     fpcomplex ret(0, 0);
     unsigned int cyclic_index        = indices[2];
@@ -721,6 +733,7 @@ __device__ fpcomplex cubicsplinePolar(fptype m12, fptype m13, fptype m23, unsign
     return ret;
 }
 
+//From Rio Amp Analysis Package
 __device__ fpcomplex BE(fptype m12, fptype m13, fptype m23,unsigned int *indices){
 
      
