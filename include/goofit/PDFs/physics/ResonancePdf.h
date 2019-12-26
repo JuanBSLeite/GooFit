@@ -3,15 +3,40 @@
 #include <goofit/PDFs/GooPdf.h>
 #include <goofit/detail/Complex.h>
 
+
 namespace GooFit {
 
 #define MAXNKNOBS 1000
 
+
 typedef fpcomplex (*resonance_function_ptr)(fptype, fptype, fptype, unsigned int *);
 
-__device__ fptype twoBodyCMmom(double rMassSq, fptype d1m, fptype d2m);
+__device__ fptype Momentum( const fptype &m,
+                            const  fptype &m1,
+                            const fptype &m2 
+                           );
 
-__device__ fptype dampingFactorSquare(const fptype &cmmom, const int &spin, const fptype &mRadius);
+__device__ fptype BWFactors(const fptype &q,
+                            const fptype &q0, 
+                            unsigned int &spin , 
+                            const fptype &meson_radius);
+
+__device__ fptype Gamma(const fptype &m,
+                        const fptype &m0,
+                        const fptype &width, 
+                        const fptype &q,    
+                        const fptype &q0,
+                        const fptype &BWFactor,
+                        const unsigned int &spin);
+
+//gounaris
+
+__device__ fptype h(const fptype &m,const fptype &q);
+__device__ fptype h_prime(const fptype &m0,const fptype &q0);
+__device__ fptype d(const fptype &m0,const fptype &q0);
+__device__ fptype f(const fptype &m, const fptype &m0,const fptype &width , const fptype &q, const fptype &q0);
+
+
 
 __device__ fptype spinFactor(unsigned int spin,
                              fptype motherMass,
@@ -23,12 +48,6 @@ __device__ fptype spinFactor(unsigned int spin,
                              fptype m23,
                              unsigned int cyclic_index);
 
-/// Service class intended to hold parametrisations of
-/// resonances on Dalitz plots. Don't try to use this
-/// as a standalone PDF! It should only be used as a
-/// component in one of the friend classes. It extends
-/// GooPdf so as to take advantage of the
-/// infrastructure, but will crash if used on its own.
 class ResonancePdf : public GooPdf {
     friend class TddpPdf;
     friend class DalitzPlotPdf;
@@ -98,12 +117,9 @@ class RHOOMEGAMIX : public ResonancePdf {
     RHOOMEGAMIX(std::string name,
         Variable ar,
         Variable ai,
-        Variable rho_mass,
-        Variable rho_width,
-	Variable omega_mass,
-        Variable omega_width,
-	Variable magB,
+        Variable magB,
         Variable phsB,
+        Variable delta,
         unsigned int sp,
         unsigned int cyc,
         bool symmDP = false);
@@ -191,29 +207,6 @@ class BoseEinstein : public ResonancePdf {
     ~BoseEinstein() override = default;
 };
 
-
-
-#if GOOFIT_KMATRIX
-        class kMatrix : public ResonancePdf{
-  public:
-    kMatrix(std::string name,
-            Variable ar,
-            Variable ai,
-            Variable sA0,
-            Variable sA,
-            Variable s0_prod,
-            Variable s0_scatt,
-            std::array<Variable, 5> f,
-            std::array<Variable, 5 * 6> poles,
-            unsigned int pterm, //< 0 or 1
-            bool is_pole,       //< False for prod
-            unsigned int L,
-            unsigned int Mpair,
-            bool symmdp);
-
-    ~kMatrix() override = default;
-};
-#endif
 
 } // namespace Resonances
 
