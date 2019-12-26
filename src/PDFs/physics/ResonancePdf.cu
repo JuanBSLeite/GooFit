@@ -368,6 +368,7 @@ __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned in
 
     fptype Delta_= delta*(rho_mass + omega_mass);
     fpcomplex Bterm(real,img);
+    Bterm*=Delta;
     fpcomplex unity(1.0,0.0);
     
 #pragma unroll
