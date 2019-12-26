@@ -55,6 +55,18 @@ __device__ fptype BWFactors(const fptype &q,const fptype &q0, unsigned int &spin
     return B;
 
 }
+// From Laura++
+// Create an effective resonance pole mass to protect against resonances
+// that are below threshold
+__device__ fptype effResMass(const fptype &m0, const fptype &MotherMass, const fptype &m1,const fptype &m2,const fptype &m3){
+
+    fptype minMass = m1+m2;
+    fptype maxMass = MotherMass - m3;
+    fptype tanhTerm = std::tanh( (m0 - ((minMass + maxMass)/2))/(maxMass-minMass));
+	fptype	ret = minMass + (maxMass-minMass)*(1+tanhTerm)/2;
+
+    return ret;
+}
 
 //from Grace Young - New Package for RooFit Supporting Dalitz Analysis
 __device__ fptype Gamma(const fptype &m,
@@ -117,9 +129,6 @@ __device__ fptype spinFactor(unsigned int spin,
 
     fptype ret;
 
-    
-     // Copied from EvtDalitzReso, with assumption that pairAng convention matches pipipi0 from EvtD0mixDalitz.
-    // Again, all threads should get the same branch.
     fptype _mA  = (PAIR_12 == cyclic_index ? daug1Mass : (PAIR_13 == cyclic_index ? daug3Mass : daug2Mass));
     fptype _mB  = (PAIR_12 == cyclic_index ? daug2Mass : (PAIR_13 == cyclic_index ? daug1Mass : daug3Mass));
     fptype _mC  = (PAIR_12 == cyclic_index ? daug3Mass : (PAIR_13 == cyclic_index ? daug2Mass : daug1Mass));
@@ -168,7 +177,6 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
     unsigned int cyclic_index = RO_CACHE(indices[5]);
 
     fpcomplex result(0., 0.);
-    fptype resmass2 = POW2(resmass);
 
 #pragma unroll
     for(int i = 0; i < I; i++) {
@@ -178,6 +186,8 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
         fptype m2 = PAIR_12 == cyclic_index ? c_daug2Mass : c_daug3Mass;
         fptype m3 = PAIR_23 == cyclic_index ? c_daug1Mass : (PAIR_13 == cyclic_index?c_daug2Mass:c_daug3Mass);
 
+        resmass = effResMass(resmass,c_motherMass,m1,m2,m3);
+        fptype resmass2 = POW2(resmass);
         fptype q  = Momentum(m,m1,m2);
         fptype q0 = Momentum(resmass,m1,m2);
         fptype BWFactors_Res = BWFactors(q,q0,spin,c_meson_radius);
@@ -204,7 +214,7 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
         }
     }
 
-    return result;
+    return reswidth>0 ? result : 0;
 }
 
 //from Laura++
@@ -293,7 +303,7 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
     unsigned int symmDP       = RO_CACHE(indices[6]);
 
     fpcomplex result(0., 0.);
-    fptype resmass2 = POW2(resmass);
+    
 
     #pragma unroll
     for(int i = 0; i < I; i++) {
@@ -305,7 +315,8 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
     // Calculate momentum of the two daughters in the resonance rest frame; note symmetry under interchange (dm1 <->
     // dm2).
 
-
+        resmass = effResMass(resmass,c_motherMass,m1,m2,m3);
+        fptype resmass2 = POW2(resmass);
         fptype q  = Momentum(m,m1,m2);
         fptype q0 = Momentum(resmass,m1,m2);
         fptype BWFactors_Res = BWFactors(q,q0,spin,c_meson_radius);
@@ -338,7 +349,7 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
 
    }
 
-    return result;
+    return reswidth>0  ? result : 0;
 }
 
 //from B ± → π ± π +π  amplitude analysis on run1 data paper and Laura++
@@ -441,6 +452,7 @@ __device__ fpcomplex lass(fptype m12, fptype m13, fptype m23, unsigned int *indi
     fptype s  = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
     fptype m  = sqrt(s);
     
+    resmass = effResMass(resmass,motherMass,m1,m2,m3);
     fptype q  = Momentum(m,m1,m2);
     fptype q0 = Momentum(resmass,m1,m2);
     fptype BWFactors_Res = BWFactors(q,q0,spin,meson_radius);
@@ -473,7 +485,7 @@ __device__ fpcomplex lass(fptype m12, fptype m13, fptype m23, unsigned int *indi
     resT *= BWFactors_Res;
     resT *= spinFactor(spin, motherMass, m1, m2, m3, m12, m13, m23, cyclic_index);
 
-    return resT;
+    return reswidth>0? resT: 0.;
 }
 
 __device__ fpcomplex nonres(fptype m12, fptype m13, fptype m23, unsigned int *indices) { return {1., 0.}; }
@@ -498,6 +510,11 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
     unsigned int cyclic_index = indices[5];
     unsigned int doSwap       = indices[6];
 
+    fptype c_motherMass   = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 0]);
+    fptype c_daug1Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 1]);
+    fptype c_daug2Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 2]);
+    fptype c_daug3Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 3]);
+
     fptype pipmass = 0.13957018;
     fptype pi0mass = 0.1349766;
     fptype kpmass  = 0.493677;
@@ -508,14 +525,17 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
     fptype twokmasssq   = 4 * kpmass * kpmass;
     fptype twok0masssq  = 4 * k0mass * k0mass;
 
-    fptype resmass2 = POW2(resmass);
-
     fpcomplex ret(0., 0.);
     
     fptype rho1(0.0), rho2(0.0);
     
     for(int i = 0; i < 1 + doSwap; i++) {
         fptype s = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
+        fptype m1 = PAIR_23 == cyclic_index ? c_daug2Mass : c_daug1Mass;
+        fptype m2 = PAIR_12 == cyclic_index ? c_daug2Mass : c_daug3Mass;
+        fptype m3 = PAIR_23 == cyclic_index ? c_daug1Mass : (PAIR_13 == cyclic_index?c_daug2Mass:c_daug3Mass);
+        resmass = effResMass(resmass,c_motherMass,m1,m2,m3);
+        fptype resmass2 = POW2(resmass);
         fptype dMSq = resmass2 - s;
 
         if (s > twopi0masssq) {
@@ -711,9 +731,8 @@ __device__ fpcomplex cubicsplinePolar(fptype m12, fptype m13, fptype m23, unsign
         fptype pwa_coefs_prime_real_khiAB = cDeriatives[twokhiAB];
         fptype pwa_coefs_prime_imag_kloAB = cDeriatives[twokloAB + 1];
         fptype pwa_coefs_prime_imag_khiAB = cDeriatives[twokhiAB + 1];
-        //  printf("m12: %f: %f %f %f %f %f %f %d %d %d\n", mAB, mKKlimits[0], mKKlimits[nKnobs-1],
-        //  pwa_coefs_real_khiAB, pwa_coefs_imag_khiAB, pwa_coefs_prime_real_khiAB, pwa_coefs_prime_imag_khiAB, khiAB,
-        //  khiAC, timestorun );
+        
+        
 
         dmKK = mKKlimits[khiAB] - mKKlimits[kloAB];
         aa   = (mKKlimits[khiAB] - mAB) / dmKK;
