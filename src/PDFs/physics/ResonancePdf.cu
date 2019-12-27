@@ -180,6 +180,10 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
         fptype q0 = Momentum(resmass,m1,m2);
         fptype BWFactors_Res = BWFactors(q,q0,spin,c_meson_radius);
 
+        fptype qD = Momentum(c_motherMass,m,m3);
+        fptype qD0 = Momentum(c_motherMass,resmass,m3);
+        fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
+
         fptype gamma = Gamma(m,resmass,reswidth,q,q0,BWFactors_Res,spin);
 
 
@@ -190,7 +194,7 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
 
         fpcomplex ret(A * C, B * C); // Dropping F_D=1
 
-        ret *= BWFactors_Res;
+        ret *= BWFactors_Res*BWFactors_D;
         ret *= spinFactor(spin, c_motherMass, c_daug1Mass, c_daug2Mass, c_daug3Mass, m12, m13, m23, cyclic_index);
 
         result += ret;
@@ -306,6 +310,10 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
         fptype q0 = Momentum(resmass,m1,m2);
         fptype BWFactors_Res = BWFactors(q,q0,spin,c_meson_radius);
 
+        fptype qD = Momentum(c_motherMass,m,m3);
+        fptype qD0 = Momentum(c_motherMass,resmass,m3);
+        fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
+
         fptype gamma = Gamma(m,resmass,reswidth,q,q0,BWFactors_Res,spin);
         fptype  massSqTerm = resmass2 - s;
 
@@ -321,7 +329,7 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
 
         fpcomplex retur(A*C,B*C);
         fptype angular = spinFactor(spin, c_motherMass, c_daug1Mass, c_daug2Mass, c_daug3Mass, m12, m13, m23, cyclic_index);
-        retur*= D*BWFactors_Res*angular;
+        retur*= D*BWFactors_Res*BWFactors_D*angular;
 
 
         result += retur;
@@ -390,6 +398,10 @@ __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned in
         fptype q0 = Momentum(rho_mass,m1,m2);
         fptype BWFactors_Res = BWFactors(q,q0,spin,c_meson_radius);
 
+        fptype qD = Momentum(c_motherMass,m,m3);
+        fptype qD0 = Momentum(c_motherMass,rho_mass,m3);
+        fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
+
         fptype gamma = Gamma(m,rho_mass,rho_width,q,q0,BWFactors_Res,spin);
         fptype h_ = h(m,q);
         fptype h_prime_ = h_prime(rho_mass,q0);
@@ -402,7 +414,7 @@ __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned in
         fptype D = 1+(rho_width*d_/rho_mass);
 
         fpcomplex rho(A*C,B*C);
-        rho*= D*BWFactors_Res*angular;
+        rho*= D*BWFactors_Res*BWFactors_D*angular;
 
          //end of Gousak
 
@@ -441,6 +453,10 @@ __device__ fpcomplex lass(fptype m12, fptype m13, fptype m23, unsigned int *indi
     fptype q0 = Momentum(resmass,m1,m2);
     fptype BWFactors_Res = BWFactors(q,q0,spin,meson_radius);
 
+    fptype qD = Momentum(motherMass,m,m3);
+    fptype qD0 = Momentum(motherMass,resmass,m3);
+    fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
+
     fptype g = Gamma(m,resmass,reswidth,q,q0,BWFactors_Res,spin);
     
     fptype _a    = 0.22357;
@@ -466,7 +482,7 @@ __device__ fpcomplex lass(fptype m12, fptype m13, fptype m23, unsigned int *indi
     resT += fpcomplex(cos(_phiB), sin(_phiB)) * _B * (cos(_phiB) + cot_deltaB * sin(_phiB)) * sqrt(s)
             / fpcomplex(qcot_deltaB, -q);
 
-    resT *= BWFactors_Res;
+    resT *= BWFactors_Res*BWFactors_D;
     resT *= spinFactor(spin, motherMass, m1, m2, m3, m12, m13, m23, cyclic_index);
 
     return reswidth>0? resT: 0.;
