@@ -88,7 +88,6 @@ __device__ fptype h(const fptype &m,const fptype &q){
 }
 
 __device__ fptype h_prime(const fptype &m0,const fptype &q0){
-    const fptype mpi = 0.13957018;
     return (h(m0,q0)*( (1./8*q0*q0) - (1./2*m0*m0) ) + (1./2*M_PI*m0*m0));
 }
 
@@ -98,7 +97,6 @@ __device__ fptype d(const fptype &m0,const fptype &q0){
 }
 
 __device__ fptype f(const fptype &m, const fptype &m0,const fptype &width , const fptype &q, const fptype &q0){
-    const fptype mpi = 0.13957018;
     return width*(POW2(m0)/POW2(q0)*q0)*( POW2(q)*(h(m,q)-h(m0,q0)) + (POW2(m0)-POW2(m))*q0*q0*h_prime(m0,q0));
 }
 
@@ -213,25 +211,20 @@ __device__ fpcomplex Pole(fptype m12, fptype m13, fptype m23, unsigned int *indi
     fptype c_daug1Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 1]);
     fptype c_daug2Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 2]);
     fptype c_daug3Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 3]);
-    fptype c_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
-
+    
     fptype real            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
     fptype img           = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
     unsigned int spin         = RO_CACHE(indices[4]);
     unsigned int cyclic_index = RO_CACHE(indices[5]);
-    unsigned int symmDP       = RO_CACHE(indices[6]);
-
+    
     fpcomplex result(0., 0.);
     
 
 #pragma unroll
     for(int i = 0; i < I; i++) {
         fptype s    = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
-        fptype m = sqrt(s);
-        fptype m1 = PAIR_23 == cyclic_index ? c_daug2Mass : c_daug1Mass;
-        fptype m2 = PAIR_12 == cyclic_index ? c_daug2Mass : c_daug3Mass;
-        fptype m3 = PAIR_23 == cyclic_index ? c_daug1Mass : (PAIR_13 == cyclic_index?c_daug2Mass:c_daug3Mass);
-
+      
+        
         fptype reTerm = (real*real - img*img) - s;
         fptype imTerm = 2.0*real*img;
 
@@ -287,7 +280,6 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
     fptype reswidth           = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
     unsigned int spin         = RO_CACHE(indices[4]);
     unsigned int cyclic_index = RO_CACHE(indices[5]);
-    unsigned int symmDP       = RO_CACHE(indices[6]);
 
     fpcomplex result(0., 0.);
     
@@ -310,10 +302,8 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
         fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
 
         fptype gamma = Gamma(m,resmass,reswidth,q,q0,BWFactors_Res,spin);
-        fptype  massSqTerm = resmass2 - s;
 
-        fptype h_ = h(m,q);
-        fptype h_prime_ = h_prime(resmass,q0);
+        
         fptype d_ = d(resmass,q0);
         fptype f_ = f(m,resmass,reswidth,q,q0);
 
@@ -356,7 +346,7 @@ __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned in
 
     unsigned int spin         = RO_CACHE(indices[5]);
     unsigned int cyclic_index = RO_CACHE(indices[6]);
-    unsigned int symmDP       = RO_CACHE(indices[7]);
+    
   
     fpcomplex result(0., 0.);
     
@@ -385,7 +375,7 @@ __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned in
         fptype B = omega_mass*omega_width;
         fptype C = 1.0 / (POW2(A) + POW2(B));
         fpcomplex omega(A * C, B * C); 
-        const fptype mpi = 0.13957018;
+        
 
         //Rho GS evaluation
 
@@ -398,8 +388,7 @@ __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned in
         fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
 
         fptype gamma = Gamma(m,rho_mass,rho_width,q,q0,BWFactors_Res,spin);
-        fptype h_ = h(m,q);
-        fptype h_prime_ = h_prime(rho_mass,q0);
+
         fptype d_ = d(rho_mass,q0);
         fptype f_ = f(m,rho_mass,rho_width,q,q0);
 
