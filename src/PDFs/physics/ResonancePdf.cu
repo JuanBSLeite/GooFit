@@ -26,13 +26,10 @@ __device__ fptype Momentum( const fptype &m,
                             ) {
   
     fptype k1 = m*m - POW2(m1+m2);
-    k1 = k1>=0. ? k1 : 1.;
     fptype k2 = m*m - POW2(m1-m2);
-    k2 = k2>=0. ? k2 : 1.;
-
     fptype q = sqrt(k1*k2)/2*m;
 
-    return q;
+    return k1*k2>0 ? q : 0.;
 }
 
 //from Grace Young - New Package for RooFit Supporting Dalitz Analysis
@@ -244,8 +241,6 @@ __device__ fpcomplex Pole(fptype m12, fptype m13, fptype m23, unsigned int *indi
 
 	fptype angular = spinFactor(spin, c_motherMass, c_daug1Mass, c_daug2Mass, c_daug3Mass, m12, m13, m23, cyclic_index);
     ret *= angular;
-    
-    //should have Form Factors?
 	
         result += ret;
 
