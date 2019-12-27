@@ -29,7 +29,7 @@ __device__ fptype Gamma(const fptype &m,
                         const fptype &BWFactor,
                         const unsigned int &spin);
 
-__device__ fptype effResMass(const fptype &m0, const fptype &MotherMass, const fptype &m1,const fptype &m2,const fptype &m3);
+
 
 //gounaris
 

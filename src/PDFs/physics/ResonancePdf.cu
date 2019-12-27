@@ -28,7 +28,7 @@ __device__ fptype Momentum( const fptype &m,
     fptype k1 = m*m - POW2(m1+m2);
     k1 = k1>=0. ? k1 : 1.;
     fptype k2 = m*m - POW2(m1-m2);
-    k2 = k2>=0. ? k2 : 2.;
+    k2 = k2>=0. ? k2 : 1.;
 
     fptype q = sqrt(k1*k2)/2*m;
 
@@ -55,18 +55,7 @@ __device__ fptype BWFactors(const fptype &q,const fptype &q0, unsigned int &spin
     return B;
 
 }
-// From Laura++
-// Create an effective resonance pole mass to protect against resonances
-// that are below threshold
-__device__ fptype effResMass(const fptype &m0, const fptype &MotherMass, const fptype &m1,const fptype &m2,const fptype &m3){
 
-    fptype minMass = m1+m2;
-    fptype maxMass = MotherMass - m3;
-    fptype tanhTerm = std::tanh( (m0 - ((minMass + maxMass)/2))/(maxMass-minMass));
-	fptype	ret = minMass + (maxMass-minMass)*(1+tanhTerm)/2;
-
-    return ret;
-}
 
 //from Grace Young - New Package for RooFit Supporting Dalitz Analysis
 __device__ fptype Gamma(const fptype &m,
@@ -186,7 +175,6 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
         fptype m2 = PAIR_12 == cyclic_index ? c_daug2Mass : c_daug3Mass;
         fptype m3 = PAIR_23 == cyclic_index ? c_daug1Mass : (PAIR_13 == cyclic_index?c_daug2Mass:c_daug3Mass);
 
-        resmass = effResMass(resmass,c_motherMass,m1,m2,m3);
         fptype resmass2 = POW2(resmass);
         fptype q  = Momentum(m,m1,m2);
         fptype q0 = Momentum(resmass,m1,m2);
@@ -312,10 +300,7 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
         fptype m1 = PAIR_23 == cyclic_index ? c_daug2Mass : c_daug1Mass;
         fptype m2 = PAIR_12 == cyclic_index ? c_daug2Mass : c_daug3Mass;
         fptype m3 = PAIR_23 == cyclic_index ? c_daug1Mass : (PAIR_13 == cyclic_index?c_daug2Mass:c_daug3Mass);
-    // Calculate momentum of the two daughters in the resonance rest frame; note symmetry under interchange (dm1 <->
-    // dm2).
-
-        resmass = effResMass(resmass,c_motherMass,m1,m2,m3);
+       
         fptype resmass2 = POW2(resmass);
         fptype q  = Momentum(m,m1,m2);
         fptype q0 = Momentum(resmass,m1,m2);
@@ -452,7 +437,6 @@ __device__ fpcomplex lass(fptype m12, fptype m13, fptype m23, unsigned int *indi
     fptype s  = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
     fptype m  = sqrt(s);
     
-    resmass = effResMass(resmass,motherMass,m1,m2,m3);
     fptype q  = Momentum(m,m1,m2);
     fptype q0 = Momentum(resmass,m1,m2);
     fptype BWFactors_Res = BWFactors(q,q0,spin,meson_radius);
@@ -510,11 +494,6 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
     unsigned int cyclic_index = indices[5];
     unsigned int doSwap       = indices[6];
 
-    fptype c_motherMass   = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 0]);
-    fptype c_daug1Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 1]);
-    fptype c_daug2Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 2]);
-    fptype c_daug3Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 3]);
-
     fptype pipmass = 0.13957018;
     fptype pi0mass = 0.1349766;
     fptype kpmass  = 0.493677;
@@ -531,10 +510,6 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
     
     for(int i = 0; i < 1 + doSwap; i++) {
         fptype s = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
-        fptype m1 = PAIR_23 == cyclic_index ? c_daug2Mass : c_daug1Mass;
-        fptype m2 = PAIR_12 == cyclic_index ? c_daug2Mass : c_daug3Mass;
-        fptype m3 = PAIR_23 == cyclic_index ? c_daug1Mass : (PAIR_13 == cyclic_index?c_daug2Mass:c_daug3Mass);
-        resmass = effResMass(resmass,c_motherMass,m1,m2,m3);
         fptype resmass2 = POW2(resmass);
         fptype dMSq = resmass2 - s;
 
