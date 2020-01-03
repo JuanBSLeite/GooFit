@@ -334,6 +334,9 @@ class DalitzPlotter {
 		if(m12.getValue()<m13.getValue()){
 			dp_data->Fill(m12.getValue(),m13.getValue());
 		}
+        if(m13.getValue()>m12.getValue()){
+			dp_data->Fill(m13.getValue(),m12.getValue());
+		}
 	}
 
 	//fill dp_toy(pdf);
@@ -342,6 +345,10 @@ class DalitzPlotter {
 		if(m12.getValue()<m13.getValue()){
 			dp_toy->Fill(m12.getValue(),m13.getValue());
 			dp_pdf->Fill(m12.getValue(),m13.getValue());
+		}
+        if(m13.getValue()>m12.getValue()){
+			dp_toy->Fill(m13.getValue(),m12.getValue());
+			dp_pdf->Fill(m13.getValue(),m12.getValue());
 		}
 	}
         double scale = double(data.getNumEvents())/double(toyMC.getNumEvents());

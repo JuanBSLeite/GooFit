@@ -156,6 +156,20 @@ class FLATTE : public ResonancePdf {
     ~FLATTE() override = default;
 };
 
+/// a0_f0_mixing
+class f0_MIXING : public ResonancePdf {
+  public:
+    f0_MIXING(std::string name,
+           Variable ar,
+           Variable ai,
+           Variable g1, //ga_kk coupling in isospin basis
+           Variable g2, //gf_kk coupling in isospin basis
+           unsigned int cyc,
+           bool symmDP);
+    ~f0_MIXING() override = default;
+};
+
+
 /// Gaussian constructor
 class Gauss : public ResonancePdf {
   public:
@@ -183,8 +197,7 @@ class Spline : public ResonancePdf {
            bool symmDP = false);
     ~Spline() override = default;
 
-    /// Recacluate the CACHE values before running
-    __host__ void recalculateCache() const override;
+ 
 };
 
 class SplinePolar : public ResonancePdf {
@@ -199,8 +212,7 @@ class SplinePolar : public ResonancePdf {
            bool symmDP = false);
     ~SplinePolar() override = default;
 
-    /// Recacluate the CACHE values before running
-    __host__ void recalculateCache() const override;
+    
 };
 
 class BoseEinstein : public ResonancePdf {

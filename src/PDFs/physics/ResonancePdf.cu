@@ -3,6 +3,7 @@
 #include <goofit/PDFs/physics/ResonancePdf.h>
 
 #include <utility>
+#include <iterator>
 
 #include <Eigen/Core>
 #include <Eigen/LU>
@@ -27,7 +28,7 @@ __device__ fptype Momentum( const fptype &m,
   
     fptype k1 = m*m - POW2(m1+m2);
     fptype k2 = m*m - POW2(m1-m2);
-    fptype q = sqrt(k1*k2)/2*m;
+    fptype q = 0.5*sqrt(k1*k2)/m;
 
     return k1*k2>0 ? q : 0.;
 }
@@ -569,12 +570,96 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
     return (g1>0 && g2>0) ? ret : 0.;
 }
 
+//from http://arxiv.org/abs/1409.2213v4 and http://arxiv.org/abs/0704.3652v3
+template<int I>
+__device__ fpcomplex a0_f0_Mixing(fptype m12, fptype m13, fptype m23, unsigned int *indices){
+
+    fptype c_motherMass   = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 0]);
+    fptype c_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
+    unsigned int cyclic_index = indices[4];
+  
+    //parmeters
+    fptype ga                 = cudaArray[indices[2]];
+    fptype gf                 = cudaArray[indices[3]];
+
+    const fptype pipmass = 0.13957018;
+    const fptype pimass  = 0.13804;
+    const fptype kpmass  = 0.493677;
+    const fptype k0mass  = 0.497614;
+    const fptype kmass   = 0.49565;
+    const fptype eta     = 0.54785;
+
+    const fptype a0_resmass = 0.998; //CLEO
+    const fptype f0_resmass = 0.9773; //KLOE
+
+    //couplings in isospin basis
+    const fptype g_a_eta_pi = 2.46;
+    const fptype g_f_pi_pi  = 1.21;
+
+    fpcomplex ret(0.,0.);
+
+    #pragma unroll
+    for(int i = 0; i < I; i++) {
+        fptype s    = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
+        fptype m = sqrt(s);
+
+        fptype q_1 = 2*m*Momentum(m,kpmass,kpmass);
+        fptype q_2 = 2*m*Momentum(m,k0mass,k0mass);
+
+        fpcomplex lambda_1_p_2 = fpcomplex(0.,1.)*(1./(16.*M_PI))*ga*gf*(q_1-q_2);
+
+        //photon_exchange
+        fptype q2 = ( POW2(2*kpmass) - s)/POW2(kpmass);
+        q2 = q2>0.?q2:1.;
+        fptype photon_ex = (-1./(137.*32.*M_PI))*( log(q2) + log(2.) + (21.*1.20205)/(2*POW2(M_PI)) );
+
+        //lambda total
+        fpcomplex lambda = lambda_1_p_2 + ga*photon_ex*gf;
+
+        //flatte for a0
+        fptype q_eta_pi = 2*m*Momentum(m,eta,pipmass);
+        fptype gamma_eta_pi = POW2(g_a_eta_pi)*(q_eta_pi/(16.*M_PI*m));
+        fptype q_k_k = 2*m*Momentum(m,kmass,kmass);
+        fptype gamma_k_k = POW2(ga)*(q_k_k/(16.*M_PI*m));
+        fptype A = -s + POW2(a0_resmass);
+        fptype B = m*(gamma_eta_pi+gamma_k_k);
+        fpcomplex Da(A,-B);
+
+        //flatte for f0
+        fptype q_pi_pi = 2.*m*Momentum(m,pimass,pimass);
+        fptype gamma_pi_pi = POW2(g_f_pi_pi)*q_pi_pi/(16.*M_PI*m);
+        gamma_k_k = POW2(gf)*(q_k_k/(16.*M_PI*m));
+        A = -s + POW2(f0_resmass);
+        B = m*(gamma_pi_pi+gamma_k_k);
+        fpcomplex Df(A,-B);
+      
+        fpcomplex mix = Da/(Df*Da - POW2(lambda)) ; //if you want a0-propagator with mixing just
+                                                    // change Da by Df in numerator!
+                                                    //if you want the mixing-propagtor change Da by lambda in numerator!
+       
+        ret += mix;
+        
+        //printf("m12= %f : Df = (%f,%f) Da=(%f,%f) ret=(%f,%f) \n",m12,Df.real(),Df.imag(),Da.real(),Da.imag(),ret.real(),ret.imag());
+        if(I != 0) {
+            fptype swpmass = m12;
+
+
+            m12            = m13;
+            m13            = swpmass;
+        }
+
+    }
+
+    return ret;
+
+}
+
 //From GooFit
 __device__ fpcomplex cubicspline(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
     fpcomplex ret(0, 0);
     unsigned int cyclic_index        = indices[2];
     unsigned int doSwap              = indices[3];
-    const unsigned int nKnobs        = indices[4];
+    const unsigned int nKnobs                   = indices[4];
     unsigned int idx                 = 5; // Next index
     unsigned int i                   = 0;
     const unsigned int pwa_coefs_idx = idx;
@@ -611,7 +696,7 @@ __device__ fpcomplex cubicspline(fptype m12, fptype m13, fptype m23, unsigned in
 
     if(khiAC <= 0 || khiAC == nKnobs)
         timestorun = 0;
-
+   
     for(i = 0; i < timestorun; i++) {
         unsigned int kloAB                = khiAB - 1; //, kloAC = khiAC -1;
         unsigned int twokloAB             = kloAB + kloAB;
@@ -624,10 +709,12 @@ __device__ fpcomplex cubicspline(fptype m12, fptype m13, fptype m23, unsigned in
         fptype pwa_coefs_prime_real_khiAB = cDeriatives[twokhiAB];
         fptype pwa_coefs_prime_imag_kloAB = cDeriatives[twokloAB + 1];
         fptype pwa_coefs_prime_imag_khiAB = cDeriatives[twokhiAB + 1];
-        //  printf("m12: %f: %f %f %f %f %f %f %d %d %d\n", mAB, mKKlimits[0], mKKlimits[nKnobs-1],
-        //  pwa_coefs_real_khiAB, pwa_coefs_imag_khiAB, pwa_coefs_prime_real_khiAB, pwa_coefs_prime_imag_khiAB, khiAB,
-        //  khiAC, timestorun );
-
+     
+      
+          /*printf("m12: %f: %f %f %f %f %f %f %d %d %d\n", mAB, mKKlimits[twokloAB], mKKlimits[twokhiAB],
+          pwa_coefs_real_khiAB, pwa_coefs_imag_khiAB, pwa_coefs_prime_real_khiAB, pwa_coefs_prime_imag_khiAB, khiAB,
+          khiAC, timestorun );*/
+       
         dmKK = mKKlimits[khiAB] - mKKlimits[kloAB];
         aa   = (mKKlimits[khiAB] - mAB) / dmKK;
         bb   = 1 - aa;
@@ -648,7 +735,7 @@ __device__ fpcomplex cubicspline(fptype m12, fptype m13, fptype m23, unsigned in
 
 //from GooFit
 __device__ fpcomplex cubicsplinePolar(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
-    fpcomplex ret(0, 0);
+    fpcomplex ret(0., 0.);
     unsigned int cyclic_index        = indices[2];
     unsigned int doSwap              = indices[3];
     const unsigned int nKnobs        = indices[4];
@@ -697,6 +784,7 @@ __device__ fpcomplex cubicsplinePolar(fptype m12, fptype m13, fptype m23, unsign
         fptype pwa_coefs_mag_khiAB       = cudaArray[indices[pwa_coefs_idx + twokhiAB]];
         fptype pwa_coefs_phase_kloAB       = cudaArray[indices[pwa_coefs_idx + twokloAB + 1]];
         fptype pwa_coefs_phase_khiAB       = cudaArray[indices[pwa_coefs_idx + twokhiAB + 1]];
+
         fptype pwa_coefs_real_kloAB = pwa_coefs_mag_kloAB*cos(pwa_coefs_phase_kloAB);
         fptype pwa_coefs_real_khiAB = pwa_coefs_mag_khiAB*cos(pwa_coefs_phase_khiAB);
         fptype pwa_coefs_imag_kloAB = pwa_coefs_mag_kloAB*sin(pwa_coefs_phase_kloAB);
@@ -706,8 +794,6 @@ __device__ fpcomplex cubicsplinePolar(fptype m12, fptype m13, fptype m23, unsign
         fptype pwa_coefs_prime_real_khiAB = cDeriatives[twokhiAB];
         fptype pwa_coefs_prime_imag_kloAB = cDeriatives[twokloAB + 1];
         fptype pwa_coefs_prime_imag_khiAB = cDeriatives[twokhiAB + 1];
-        
-        
 
         dmKK = mKKlimits[khiAB] - mKKlimits[kloAB];
         aa   = (mKKlimits[khiAB] - mAB) / dmKK;
@@ -721,10 +807,11 @@ __device__ fpcomplex cubicsplinePolar(fptype m12, fptype m13, fptype m23, unsign
         ret.imag(ret.imag() + aa * pwa_coefs_imag_kloAB + bb * pwa_coefs_imag_khiAB
                  + ((aa3 - aa) * pwa_coefs_prime_imag_kloAB + (bb3 - bb) * pwa_coefs_prime_imag_khiAB) * (dmKK * dmKK)
                        / 6.0);
+
         khiAB = khiAC;
         mAB   = mAC;
     }
-    return ret;
+    return ret ;
 }
 
 //From Rio Amp Analysis Package
@@ -752,6 +839,8 @@ __device__ resonance_function_ptr ptr_to_RHOOMEGAMIX      = RhoOmegaMix<1>;
 __device__ resonance_function_ptr ptr_to_RHOOMEGAMIX_SYM  = RhoOmegaMix<2>;
 __device__ resonance_function_ptr ptr_to_LASS     = lass;
 __device__ resonance_function_ptr ptr_to_FLATTE   = flatte;
+__device__ resonance_function_ptr ptr_to_f0_MIXING = a0_f0_Mixing<1>;
+__device__ resonance_function_ptr ptr_to_f0_MIXING_SYM = a0_f0_Mixing<2>;
 __device__ resonance_function_ptr ptr_to_SPLINE   = cubicspline;
 __device__ resonance_function_ptr ptr_to_SPLINE_POLAR   = cubicsplinePolar;
 __device__ resonance_function_ptr ptr_to_BoseEinstein = BE;
@@ -908,6 +997,28 @@ FLATTE::FLATTE(std::string name,
     initialize(pindices);
 }
 
+f0_MIXING::f0_MIXING(std::string name,
+    Variable ar,
+    Variable ai,
+    Variable g1,
+    Variable g2,
+    unsigned int cyc,
+    bool symmDP)
+: ResonancePdf(name, ar, ai) {
+pindices.push_back(registerParameter(g1));
+pindices.push_back(registerParameter(g2));
+pindices.push_back(cyc);
+pindices.push_back((unsigned int)symmDP);
+
+if(symmDP) {
+    GET_FUNCTION_ADDR(ptr_to_f0_MIXING_SYM);
+} else {
+    GET_FUNCTION_ADDR(ptr_to_f0_MIXING);
+}
+
+initialize(pindices);
+}
+
 Spline::Spline(std::string name,
                Variable ar,
                Variable ai,
@@ -920,6 +1031,7 @@ Spline::Spline(std::string name,
     std::vector<unsigned int> pindices;
     const unsigned int nKnobs = HH_bin_limits.size();
     host_constants.resize(nKnobs);
+    std::vector<fpcomplex> y(nKnobs);
 
     pindices.push_back(0);
     pindices.push_back(cyc);
@@ -930,18 +1042,24 @@ Spline::Spline(std::string name,
         host_constants[i] = HH_bin_limits[i];
         pindices.push_back(registerParameter(pwa_coefs_reals[i]));
         pindices.push_back(registerParameter(pwa_coefs_imags[i]));
+        y[i].real(pwa_coefs_reals[i].getValue());
+        y[i].imag(pwa_coefs_imags[i].getValue());
     }
     pindices.push_back(registerConstants(nKnobs));
-
+    std::vector<fptype> y2_flat = flatten(complex_derivative(host_constants, y));
+    MEMCPY_TO_SYMBOL(cDeriatives, y2_flat.data(), 2 * nKnobs * sizeof(fptype), 0, cudaMemcpyHostToDevice);
+    
     MEMCPY_TO_SYMBOL(functorConstants,
                      host_constants.data(),
                      nKnobs * sizeof(fptype),
                      cIndex * sizeof(fptype),
                      cudaMemcpyHostToDevice);
-
+    
     GET_FUNCTION_ADDR(ptr_to_SPLINE);
 
     initialize(pindices);
+
+   
 }
 
 SplinePolar::SplinePolar(std::string name,
@@ -956,6 +1074,7 @@ SplinePolar::SplinePolar(std::string name,
     std::vector<unsigned int> pindices;
     const unsigned int nKnobs = HH_bin_limits.size();
     host_constants.resize(nKnobs);
+    std::vector<fpcomplex> y(nKnobs);
 
     pindices.push_back(0);
     pindices.push_back(cyc);
@@ -966,8 +1085,12 @@ SplinePolar::SplinePolar(std::string name,
         host_constants[i] = HH_bin_limits[i];
         pindices.push_back(registerParameter(pwa_coefs_reals[i]));
         pindices.push_back(registerParameter(pwa_coefs_imags[i]));
+        y[i].real( (pwa_coefs_reals[i].getValue())*cos(pwa_coefs_imags[i].getValue()) );
+        y[i].imag( (pwa_coefs_reals[i].getValue())*sin(pwa_coefs_imags[i].getValue()) );
     }
     pindices.push_back(registerConstants(nKnobs));
+    std::vector<fptype> y2_flat = flatten(complex_derivative(host_constants, y));
+    MEMCPY_TO_SYMBOL(cDeriatives, y2_flat.data(), 2 * nKnobs * sizeof(fptype), 0, cudaMemcpyHostToDevice);
 
     MEMCPY_TO_SYMBOL(functorConstants,
                      host_constants.data(),
@@ -975,52 +1098,10 @@ SplinePolar::SplinePolar(std::string name,
                      cIndex * sizeof(fptype),
                      cudaMemcpyHostToDevice);
 
+   
     GET_FUNCTION_ADDR(ptr_to_SPLINE_POLAR);
 
     initialize(pindices);
-}
-
-__host__ void SplinePolar::recalculateCache() const {
-    auto params           = getParameters();
-    const unsigned nKnobs = params.size() / 2;
-    std::vector<fpcomplex> y(nKnobs);
-    std::vector<fptype> x(nKnobs);
-    unsigned int i = 0;
-    fptype prevvalue = 0;
-    fptype prevang = 0;
-    for(auto v = params.begin(); v != params.end(); ++v, ++i) {
-        unsigned int idx = i / 2;
-        fptype value     = host_params[v->getIndex()];
-        if(i % 2 != 0){
-            prevang = value;
-            y[idx].real((prevvalue)*cos(prevang));
-            y[idx].imag((prevvalue)*sin(prevang));
-        }
-        prevvalue = value;
-    }
-    std::vector<fptype> y2_flat = flatten(complex_derivative(host_constants, y));
-
-    MEMCPY_TO_SYMBOL(cDeriatives, y2_flat.data(), 2 * nKnobs * sizeof(fptype), 0, cudaMemcpyHostToDevice);
-}
-
-__host__ void Spline::recalculateCache() const {
-    auto params           = getParameters();
-    const unsigned nKnobs = params.size() / 2;
-    std::vector<fpcomplex> y(nKnobs);
-    unsigned int i = 0;
-    for(auto v = params.begin(); v != params.end(); ++v, ++i) {
-        unsigned int idx = i / 2;
-        fptype value     = host_params[v->getIndex()];
-        if(i % 2 == 0){
-            y[idx].real(value);
-           
-        }else{
-            y[idx].imag(value);
-        }
-    }
-    std::vector<fptype> y2_flat = flatten(complex_derivative(host_constants, y));
-
-    MEMCPY_TO_SYMBOL(cDeriatives, y2_flat.data(), 2 * nKnobs * sizeof(fptype), 0, cudaMemcpyHostToDevice);
 }
 
 BoseEinstein::BoseEinstein(std::string name,Variable ar, Variable ai, Variable coef)
