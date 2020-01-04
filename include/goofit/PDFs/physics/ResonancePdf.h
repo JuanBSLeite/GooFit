@@ -16,6 +16,18 @@ __device__ fptype Momentum( const fptype &m,
                             const fptype &m2 
                            );
 
+//for a0_f0 mixing
+__device__ fptype kallenFunction( const fptype &m,
+    const fptype &m1,
+    const fptype &m2
+    );
+
+//for a0_f0 mixing
+__device__ fptype rhoBC( const fptype &m,
+    const fptype &m1,
+    const fptype &m2
+    );
+
 __device__ fptype BWFactors(const fptype &q,
                             const fptype &q0, 
                             unsigned int &spin , 
@@ -164,6 +176,8 @@ class f0_MIXING : public ResonancePdf {
            Variable ai,
            Variable g1, //ga_kk coupling in isospin basis
            Variable g2, //gf_kk coupling in isospin basis
+           Variable g3, //ga_eta_pi coupling in isospin basis
+           Variable g4, //gf_pi_pi coupling in isospin basis
            unsigned int cyc,
            bool symmDP);
     ~f0_MIXING() override = default;
