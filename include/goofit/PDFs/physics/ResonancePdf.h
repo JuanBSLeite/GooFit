@@ -174,10 +174,12 @@ class f0_MIXING : public ResonancePdf {
     f0_MIXING(std::string name,
            Variable ar,
            Variable ai,
-           Variable g1, //ga_kk coupling in isospin basis
-           Variable g2, //gf_kk coupling in isospin basis
-           Variable g3, //ga_eta_pi coupling in isospin basis
-           Variable g4, //gf_pi_pi coupling in isospin basis
+           Variable g1, //ga_kk coupling in particle basis
+           Variable g2, //gf_kk coupling in particle basis
+           Variable g3, //ga_eta_pi coupling in particle basis
+           Variable g4, //gf_pi_pi coupling in particle basis
+           Variable a0Mass,
+           Variable f0Mass,
            unsigned int cyc,
            bool symmDP);
     ~f0_MIXING() override = default;

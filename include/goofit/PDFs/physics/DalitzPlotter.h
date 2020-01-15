@@ -66,7 +66,7 @@ class DalitzPlotter {
 
 
                 TCanvas foo("foo","",1020,720);
-
+                foo.SetLogy(true);
                 hd->Draw("E");
                 ht->Draw("HISTsame");
 
@@ -195,48 +195,54 @@ class DalitzPlotter {
 
     void Plot(double Mother_mass,double d1_mass,double d2_mass,double d3_mass, std::string sij, std::string sik , std::string sjk , std::string plotdir,UnbinnedDataSet data) {
         
+        fptype s12_min = POW2(d1_mass  + d2_mass);
+        fptype s12_max = POW2(Mother_mass   - d3_mass);
+        fptype s13_min = POW2(d1_mass  + d3_mass);
+        fptype s13_max = POW2(Mother_mass    - d2_mass);
+        fptype s23_min = POW2(d2_mass  + d3_mass);
+        fptype s23_max = POW2(Mother_mass   - d1_mass);
 
         m12.setNumBins(300);
         m13.setNumBins(300);
-        TH1F m12_dat_hist("s12_dat_hist", "", m12.getNumBins(), 0.01*m12.getLowerLimit(), m12.getUpperLimit());
+        TH1F m12_dat_hist("s12_dat_hist", "", m12.getNumBins(), s12_min, s12_max);
         m12_dat_hist.GetXaxis()->SetTitle( (sij+"[GeV]^{2}").c_str());
         m12_dat_hist.GetYaxis()->SetTitle("Events");
 
-        TH1F m12_pdf_hist("s12_pdf_hist", "", m12.getNumBins(), 0.01*m12.getLowerLimit(), m12.getUpperLimit());
+        TH1F m12_pdf_hist("s12_pdf_hist", "", m12.getNumBins(), s12_min, s12_max);
 
-        TH1F m13_dat_hist("s13_dat_hist", "", m13.getNumBins(), 0.01*m13.getLowerLimit(), m13.getUpperLimit());
+        TH1F m13_dat_hist("s13_dat_hist", "", m13.getNumBins(),s13_min, s13_max);
         m13_dat_hist.GetXaxis()->SetTitle( (sik+"[GeV]^{2}").c_str());
         m13_dat_hist.GetYaxis()->SetTitle("Events");
 
-        TH1F m13_pdf_hist("s13_pdf_hist", "", m13.getNumBins(), m13.getLowerLimit(), m13.getUpperLimit());
+        TH1F m13_pdf_hist("s13_pdf_hist", "", m13.getNumBins(), s13_min, s13_max);
 
-        TH1F m23_dat_hist("s23_dat_hist", "", m13.getNumBins(), 0.01*m13.getLowerLimit(), m13.getUpperLimit());
+        TH1F m23_dat_hist("s23_dat_hist", "", m13.getNumBins(), s23_min, s23_max);
         m23_dat_hist.GetXaxis()->SetTitle( (sjk+"[GeV]^{2}").c_str());
         m23_dat_hist.GetYaxis()->SetTitle("Events");
 
-        TH1F m23_pdf_hist("s23_pdf_hist", "", m13.getNumBins(), 0.01*m13.getLowerLimit(), m13.getUpperLimit());
+        TH1F m23_pdf_hist("s23_pdf_hist", "", m13.getNumBins(), s23_min, s23_max);
 
         double totalPdf = 0;
         double totalDat = 0;
         TH2F dalitz_dat_hist("dalitz_data_hist",
                                 "",
                                 m12.getNumBins(),
-                                m12.getLowerLimit(),
-                                m12.getUpperLimit(),
+                                s12_min,
+                                s12_max,
                                 m13.getNumBins(),
-                                m13.getLowerLimit(),
-                                m13.getUpperLimit());
+                                s13_min,
+                                s13_max);
         dalitz_dat_hist.SetStats(false);
         dalitz_dat_hist.GetXaxis()->SetTitle((sij+"[GeV]^{2}").c_str());
         dalitz_dat_hist.GetYaxis()->SetTitle((sik+"[GeV]^{2}").c_str());
         TH2F dalitz_pdf_hist("dalitz_pdf_hist",
                                 "",
-                                m12.getNumBins(),
-                                m12.getLowerLimit(),
-                                m12.getUpperLimit(),
+                               m12.getNumBins(),
+                                s12_min,
+                                s12_max,
                                 m13.getNumBins(),
-                                m13.getLowerLimit(),
-                                m13.getUpperLimit());
+                                s13_min,
+                                s13_max);
 
         dalitz_pdf_hist.GetXaxis()->SetTitle((sij+"[GeV]^{2}").c_str());
         dalitz_pdf_hist.GetYaxis()->SetTitle((sik+"[GeV]^{2}").c_str());
@@ -255,8 +261,8 @@ class DalitzPlotter {
         TRandom3 donram(50);
         for(int i = 0; i < NevG; i++) {
             do {
-                m12.setValue(donram.Uniform(m12.getLowerLimit(), m12.getUpperLimit()));
-                m13.setValue(donram.Uniform(m13.getLowerLimit(), m13.getUpperLimit()));
+                m12.setValue(donram.Uniform(s12_min, s12_max));
+                m13.setValue(donram.Uniform(s13_min,s13_max));
             } while(!inDalitz(m12.getValue(), m13.getValue(), Mother_mass, d1_mass, d2_mass, d3_mass));
 
                 eventNumber.setValue(evtCounter);
@@ -290,7 +296,7 @@ class DalitzPlotter {
         foo.SetLogz(true);
         dalitz_pdf_hist.Draw("colz");
 
-        foo.SaveAs("plots/dalitz_pdf.png");
+        foo.SaveAs( (plotdir+"/dalitz_pdf.png").c_str() );
 
         for(unsigned int evt = 0; evt < data.getNumEvents(); ++evt) {
             double data_m12 = data.getValue(m12, evt);

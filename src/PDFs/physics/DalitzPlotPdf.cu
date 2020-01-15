@@ -393,13 +393,13 @@ __host__ std::vector<std::vector<fptype>> DalitzPlotPdf::fit_fractions() {
     fptype total_PDF = buffer_all / nEntries;
 
     std::vector<std::vector<fptype>> ff(n_res, std::vector<fptype>(n_res));
-    printf("Fit Fractions: \n");
+    printf("Fit Fractions in %: \n");
     for(size_t i = 0; i < n_res; i++){
         for(size_t j = 0; j < n_res; j++){
             ff[i][j] = (Amps_int[i][j]/total_PDF);
 	    if(i==j){
-			    	
-		printf("Fit Fraction %d = %f \n",j,ff[i][j]);
+		std::string name = getDecayInfo().resonances.at(j)->getName();
+		printf("Fit Fraction of %s = %.2f \n",name.c_str(),ff[i][j]*100.);
 	    }
 	}
     }

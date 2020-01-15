@@ -40,7 +40,7 @@ __device__ fptype kallenFunction( const fptype &m,
     ) {
 
     fptype q = m*m + m1*m1 + m2*m2 - 2*m*m1 - 2*m*m2 - 2*m1*m2;
-    q = q>0.?q:0.;
+    q = q>0.?q:-q;
 
     return sqrt(q)/m;
 }
@@ -51,7 +51,7 @@ __device__ fptype rhoBC( const fptype &m,
     ) {
 
     fptype q = m*m + m1*m1 + m2*m2 - 2*m*m1 - 2*m*m2 - 2*m1*m2;
-    q = q>0.?q:0.;
+    q = q>0.?q:-q;
 
     return 0.5*sqrt(q)/sqrt(m);
 }
@@ -225,7 +225,7 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
         }
     }
 
-    return reswidth>0 ? result : 0;
+    return reswidth>0 ? result : fpcomplex(0.,0.);
 }
 
 //from Laura++
@@ -351,7 +351,7 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
 
    }
 
-    return reswidth>0  ? result : 0;
+    return reswidth>0  ? result : fpcomplex(0.,0.);
 }
 
 //from B ± → π ± π +π  amplitude analysis on run1 data paper and Laura++
@@ -493,7 +493,7 @@ __device__ fpcomplex lass(fptype m12, fptype m13, fptype m23, unsigned int *indi
     resT *= BWFactors_Res*BWFactors_D;
     resT *= spinFactor(spin, motherMass, m1, m2, m3, m12, m13, m23, cyclic_index);
 
-    return reswidth>0? resT: 0.;
+    return reswidth>0? resT: fpcomplex(0.,0.);
 }
 
 __device__ fpcomplex nonres(fptype m12, fptype m13, fptype m23, unsigned int *indices) { return {1., 0.}; }
@@ -590,7 +590,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
         }
     }
 
-    return (g1>0 && g2>0) ? ret : 0.;
+    return (g1>0 && g2>0) ? ret : fpcomplex(0.,0.);
 }
 
 //from http://arxiv.org/abs/1409.2213v4 and http://arxiv.org/abs/0704.3652v3
@@ -599,13 +599,16 @@ __device__ fpcomplex a0_f0_Mixing(fptype m12, fptype m13, fptype m23, unsigned i
 
     fptype c_motherMass   = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 0]);
     fptype c_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
-    unsigned int cyclic_index = indices[7];
+    unsigned int cyclic_index = indices[8];
   
     //parameters
+    //couplings in particle basis
     fptype g_a_kk                 = cudaArray[indices[2]];
     fptype g_f_kk                 = cudaArray[indices[3]];
-    fptype g_a_eta_pi             = cudaArray[indices[5]];
-    fptype g_f_pi_pi              = cudaArray[indices[6]];
+    fptype g_a_eta_pi             = cudaArray[indices[4]];
+    fptype g_f_pi_pi              = cudaArray[indices[5]];
+    fptype a0_resmass             = cudaArray[indices[6]]; 
+    fptype f0_resmass             = cudaArray[indices[7]];
 
     const fptype pipmass = 0.13957018;
     const fptype pimass  = 0.13804;
@@ -613,12 +616,6 @@ __device__ fpcomplex a0_f0_Mixing(fptype m12, fptype m13, fptype m23, unsigned i
     const fptype k0mass  = 0.497614;
     const fptype kmass   = 0.49565;
     const fptype eta     = 0.54785;
-
-    const fptype a0_resmass = 0.998; //CLEO
-    const fptype f0_resmass = 0.977; //KLOE
-
-    //couplings in isospin basis
-    
 
     fpcomplex ret(0.,0.);
 
@@ -638,26 +635,27 @@ __device__ fpcomplex a0_f0_Mixing(fptype m12, fptype m13, fptype m23, unsigned i
         fptype photon_ex = (-1./(137.*32.*M_PI))*( log(q2) + log(2.) + (21.*1.20205)/(2*POW2(M_PI)) );
 
         //lambda total
-        fpcomplex lambda = lambda_1_p_2 + g_a_kk*photon_ex*g_f_kk;
+        fpcomplex lambda = lambda_1_p_2 ;//+ g_a_kk*photon_ex*g_f_kk;
 
         //flatte for a0
         fptype q_eta_pi = rhoBC(s,POW2(eta),POW2(pipmass));
-        fptype gamma_eta_pi = POW2(g_a_eta_pi)*(q_eta_pi/(8.*M_PI*s));
+        fptype gamma_eta_pi = 2.*POW2(g_a_eta_pi)*(q_eta_pi/(8.*M_PI*s));
         fptype q_k_k = rhoBC(s,POW2(kmass),POW2(kmass));
-        fptype gamma_k_k = POW2(g_a_kk)*(q_k_k/(8.*M_PI*s));
-        fptype A = s - POW2(a0_resmass);
+        fptype gamma_k_k = 2.*POW2(g_a_kk)*(q_k_k/(8.*M_PI*s));
+        fptype A = -s + POW2(a0_resmass);
         fptype B = m*(gamma_eta_pi+gamma_k_k);
         fpcomplex Da(A,B);
 
         //flatte for f0
         fptype q_pi_pi = rhoBC(s,POW2(pimass),POW2(pimass));
-        fptype gamma_pi_pi = POW2(g_f_pi_pi)*q_pi_pi/(8.*M_PI*s);
-        gamma_k_k = POW2(g_f_kk)*(q_k_k/(8.*M_PI*s));
-        A = s - POW2(f0_resmass);
+        fptype gamma_pi_pi = 2.*POW2(g_f_pi_pi)*q_pi_pi/(8.*M_PI*s);
+        gamma_k_k = 2.*POW2(g_f_kk)*(q_k_k/(8.*M_PI*s));
+        A = -s + POW2(f0_resmass);
         B = m*(gamma_pi_pi+gamma_k_k);
         fpcomplex Df(A,B);
       
-        fpcomplex mix = Da/(Df*Da - POW2(lambda)) ; //if you want a0-propagator with mixing just
+        fpcomplex C = Df*Da - thrust::norm(lambda);
+        fpcomplex mix = Da/C ;                      //if you want a0-propagator with mixing just
                                                     // change Da by Df in numerator!
                                                     //if you want the mixing-propagtor change Da by lambda in numerator!
        
@@ -1028,6 +1026,8 @@ f0_MIXING::f0_MIXING(std::string name,
     Variable g2,
     Variable g3,
     Variable g4,
+    Variable a0Mass,
+    Variable f0Mass,
     unsigned int cyc,
     bool symmDP)
 : ResonancePdf(name, ar, ai) {
@@ -1035,6 +1035,8 @@ pindices.push_back(registerParameter(g1));
 pindices.push_back(registerParameter(g2));
 pindices.push_back(registerParameter(g3));
 pindices.push_back(registerParameter(g4));
+pindices.push_back(registerParameter(a0Mass));
+pindices.push_back(registerParameter(f0Mass));
 pindices.push_back(cyc);
 pindices.push_back((unsigned int)symmDP);
 
