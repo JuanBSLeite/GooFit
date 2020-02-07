@@ -32,7 +32,7 @@ constexpr int resonanceOffset_DP = 4; // Offset of the first resonance into the 
 // own cache, hence the '10'. Ten threads should be enough for anyone!
 
 // NOTE: This is does not support ten instances (ten threads) of resoncances now, only one set of resonances.
-__device__ fpcomplex *cResonances[16];
+__device__ fpcomplex *cResonances[20];
 
 __device__ inline int parIndexFromResIndex_DP(int resIndex) { return resonanceOffset_DP + resIndex * resonanceSize; }
 
@@ -112,7 +112,7 @@ __device__ fptype device_DalitzPlot(fptype *evt, fptype *p, unsigned int *indice
     fptype eff         = callFunction(evt, RO_CACHE(indices[effFunctionIdx]), RO_CACHE(indices[effFunctionIdx + 1]));
     ret *= eff;
 
-     //printf("eff = %d", eff);
+    //printf("eff = %d", eff)
 
     return ret;
 }
@@ -210,7 +210,7 @@ __host__ void DalitzPlotPdf::setDataSize(unsigned int dataSize, unsigned int evt
 
     numEntries = dataSize;
 
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < 20; i++) {
 #ifdef GOOFIT_MPI
         cachedWaves[i] = new thrust::device_vector<fpcomplex>(m_iEventsPerTask);
 #else
@@ -391,7 +391,6 @@ __host__ std::vector<std::vector<fptype>> DalitzPlotPdf::fit_fractions() {
     }
 
     fptype total_PDF = buffer_all / nEntries;
-
     std::vector<std::vector<fptype>> ff(n_res, std::vector<fptype>(n_res));
     printf("Fit Fractions in %: \n");
     for(size_t i = 0; i < n_res; i++){
@@ -399,7 +398,7 @@ __host__ std::vector<std::vector<fptype>> DalitzPlotPdf::fit_fractions() {
             ff[i][j] = (Amps_int[i][j]/total_PDF);
 	    if(i==j){
 		std::string name = getDecayInfo().resonances.at(j)->getName();
-		printf("Fit Fraction of %s = %.2f \n",name.c_str(),ff[i][j]*100.);
+		printf("Fit Fraction %s = %.2f\n",name.c_str(),ff[i][j]*100.);
 	    }
 	}
     }

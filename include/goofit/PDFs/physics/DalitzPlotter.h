@@ -66,7 +66,7 @@ class DalitzPlotter {
 
 
                 TCanvas foo("foo","",1020,720);
-                foo.SetLogy(true);
+               
                 hd->Draw("E");
                 ht->Draw("HISTsame");
 

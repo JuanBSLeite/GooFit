@@ -237,6 +237,16 @@ class BoseEinstein : public ResonancePdf {
     ~BoseEinstein() override = default;
 };
 
+class HanhartPWave : public ResonancePdf {
+  public:
+   HanhartPWave(std::string name, Variable ar, Variable ai,
+                Variable e1 ,
+                Variable e2,
+                unsigned int cyc,
+                bool symmDP = false);
+    ~HanhartPWave() override = default;
+};
+
 
 } // namespace Resonances
 
