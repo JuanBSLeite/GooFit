@@ -60,9 +60,10 @@ __device__ fptype rhoBC( const fptype &m,
 }
 
 //for Hanhart PWave
-__device__ fptype z_FF( const fptype &m, const fptype &c_motherMass){
+__device__ fptype z_FF( const fptype &s, const fptype &c_motherMass){
 
     const fptype pipmass = 0.13957018;
+    fptype m = s;
     fptype tplus = POW2(c_motherMass + pipmass);
     fptype t0    = (c_motherMass + pipmass)*POW2(sqrt(c_motherMass)-sqrt(pipmass));
 
@@ -872,36 +873,38 @@ __device__ fpcomplex hanhartpwave(fptype m12, fptype m13, fptype m23,unsigned in
     
     //fit parameters
     fptype e1            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
-    fptype e2            = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
-
+    fptype mag            = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
+    fptype phase            = RO_CACHE(cudaArray[RO_CACHE(indices[4])]);
+  
     //constants
     fptype c_motherMass   = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 0]);
     fptype c_daug1Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 1]);
     fptype c_daug2Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 2]);
     fptype c_daug3Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 3]);
     fptype c_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
-    unsigned int cyclic_index = indices[4];
-    unsigned int doSwap = indices[5];
-    unsigned int nKnobs = indices[6];
+    unsigned int cyclic_index = indices[5];
+    unsigned int doSwap = indices[6];
+    unsigned int nKnobs = indices[7];
+    //printf("cy = %d   swap = %d  nknobs = %d \n",cyclic_index,doSwap,indices[4]);
     unsigned int timestorun = doSwap + 1;
-    const fptype pipmass = 0.13957018;
+    //const fptype pipmass = 0.13957018;
     const fptype PV = 0.1314;
     const fptype cpDpi = -1.985;
     const fptype fDpizero = 0.6117;
-    fptype FF_Dpi = 0;;
+    fptype FF_Dpi = 0;
     const int spin =1;
     
-    fptype mAB=m12, mAC=m13, mBC=m23;
+    fptype mAB=m12, mAC=m13;
     switch(cyclic_index) {
     case PAIR_13:
         mAB = m13;
         mAC = m12;
-        mBC = m23;
+      
         break;
     case PAIR_23:
         mAB = m23;
         mAC = m12;
-        mBC = m23;
+     
         break;
     }
     mAB = mAB; mAC = mAC; 
@@ -944,16 +947,17 @@ __device__ fpcomplex hanhartpwave(fptype m12, fptype m13, fptype m23,unsigned in
         fptype pwa_coefs_imag_kloAB = pwa_coefs_mag_kloAB*sin(pwa_coefs_phase_kloAB);
         fptype pwa_coefs_imag_khiAB = pwa_coefs_mag_khiAB*sin(pwa_coefs_phase_khiAB);
 
-        fptype pwa_coefs_prime_real_kloAB = hanhart_derivatives_pipi[twokloAB];
-        fptype pwa_coefs_prime_real_khiAB = hanhart_derivatives_pipi[twokhiAB];
-        fptype pwa_coefs_prime_imag_kloAB = hanhart_derivatives_pipi[twokloAB + 1];
-        fptype pwa_coefs_prime_imag_khiAB = hanhart_derivatives_pipi[twokhiAB + 1];
+        //fptype pwa_coefs_prime_real_kloAB = hanhart_derivatives_pipi[twokloAB];
+        //fptype pwa_coefs_prime_real_khiAB = hanhart_derivatives_pipi[twokhiAB];
+        //fptype pwa_coefs_prime_imag_kloAB = hanhart_derivatives_pipi[twokloAB + 1];
+        //fptype pwa_coefs_prime_imag_khiAB = hanhart_derivatives_pipi[twokhiAB + 1];
         //printf("klo = %d  khig = %d  m12 = %f  s_low = %f  s_hig = %f  mag = %f  phase = %f \n ",kloAB,khiAB,mAB,hanhart_s_pipi[kloAB],hanhart_s_pipi[khiAB],hanhart_coefs_pipi[twokloAB],hanhart_coefs_pipi[twokloAB+1] );
         fptype dmKK = hanhart_s_pipi[khiAB] - hanhart_s_pipi[kloAB];
         fptype aa   = (hanhart_s_pipi[khiAB] - s) / dmKK;
         fptype bb   = 1 - aa;    
-        fptype aa3  = aa * aa * aa;
-        fptype bb3  = bb * bb * bb; 
+        //fptype aa3  = aa * aa * aa;
+        //fptype bb3  = bb * bb * bb; 
+
 
         ret.real(aa * pwa_coefs_real_kloAB + bb * pwa_coefs_real_khiAB); 
         ret.imag(aa * pwa_coefs_imag_kloAB + bb * pwa_coefs_imag_khiAB);
@@ -961,13 +965,14 @@ __device__ fpcomplex hanhartpwave(fptype m12, fptype m13, fptype m23,unsigned in
 
         fptype z0 = z_FF(0,c_motherMass);
         fptype z  = z_FF(s,c_motherMass);
+        
         //vector form factor
         FF_Dpi = fDpizero + cpDpi*(z - z0)*(1. + 0.5*(z + z0));
         FF_Dpi /= (1. - PV*s);
-
+        //printf("FF = %f\n",FF_Dpi);
         //full amplitude
         
-        ret *= fpcomplex(e1 + e2*FF_Dpi,0.);
+        ret *= fpcomplex(e1,0.) + fpcomplex(mag*cos(phase),mag*sin(phase))*FF_Dpi;
         fptype angular = spinFactor(spin, c_motherMass, c_daug1Mass, c_daug2Mass, c_daug3Mass, m12, m13, m23, cyclic_index);
         ret *= angular;
 
@@ -1286,14 +1291,16 @@ HanhartPWave::HanhartPWave(std::string name,
     Variable ar,
     Variable ai,
     Variable e1,
-    Variable e2,
+    Variable mag,
+    Variable phase,
     unsigned int cyc,
     bool symmDP)
 : ResonancePdf(name, ar, ai) {
     std::vector<unsigned int> pindices;
     pindices.push_back(registerParameter(e1));
-    pindices.push_back(registerParameter(e2));
-    pindices.push_back(0);
+    pindices.push_back(registerParameter(mag));
+    pindices.push_back(registerParameter(phase));
+    pindices.push_back(5);
     pindices.push_back(cyc);
     pindices.push_back(symmDP);
 
@@ -1304,17 +1311,17 @@ HanhartPWave::HanhartPWave(std::string name,
     }else{
         printf("file loaded successfully \n");
     }
-    fptype s,mag,phase = 0.;
+    fptype s,mag_,phase_ = 0.;
     std::vector<fptype> host_hanhart_s_pipi;
     std::vector<fptype> host_hanhart_coefs_pipi;
 
-    while(rd>>s>>mag>>phase){
+    while(rd>>s>>mag_>>phase_){
         s*=s;
-        phase*=M_PI/180.;
+        phase_*=M_PI/180.;
 
             host_hanhart_s_pipi.push_back(s);
-            host_hanhart_coefs_pipi.push_back(mag);
-            host_hanhart_coefs_pipi.push_back(phase);
+            host_hanhart_coefs_pipi.push_back(mag_);
+            host_hanhart_coefs_pipi.push_back(phase_);
       
     }
 

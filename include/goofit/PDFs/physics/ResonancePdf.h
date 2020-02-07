@@ -241,7 +241,8 @@ class HanhartPWave : public ResonancePdf {
   public:
    HanhartPWave(std::string name, Variable ar, Variable ai,
                 Variable e1 ,
-                Variable e2,
+                Variable mag,
+                Variable phase,
                 unsigned int cyc,
                 bool symmDP = false);
     ~HanhartPWave() override = default;
