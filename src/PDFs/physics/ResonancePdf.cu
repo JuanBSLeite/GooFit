@@ -867,7 +867,7 @@ __device__ fpcomplex BE(fptype m12, fptype m13, fptype m23,unsigned int *indices
 
 }
 
-//From PHYSICAL REVIEW D 96, 113003 (2017)
+//From PHYSICAL REVIEW D 96, 113003 (2017) and arXiv:1508.06841v2
 __device__ fpcomplex hanhartpwave(fptype m12, fptype m13, fptype m23,unsigned int *indices){
 
     
@@ -907,8 +907,7 @@ __device__ fpcomplex hanhartpwave(fptype m12, fptype m13, fptype m23,unsigned in
      
         break;
     }
-    mAB = mAB; mAC = mAC; 
-   
+       
     int khiAB = 0, khiAC = 0;
     while(khiAB < nKnobs) {
         if(mAB < hanhart_s_pipi[khiAB])
@@ -933,6 +932,7 @@ __device__ fpcomplex hanhartpwave(fptype m12, fptype m13, fptype m23,unsigned in
     #pragma unroll
     for(int i = 0; i < timestorun; i++) {
         fptype s    = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
+        
         unsigned int kloAB                = khiAB - 1; //, kloAC = khiAC -1;
         unsigned int twokloAB             = kloAB + kloAB;
         unsigned int twokhiAB             = khiAB + khiAB;
@@ -977,9 +977,9 @@ __device__ fpcomplex hanhartpwave(fptype m12, fptype m13, fptype m23,unsigned in
         ret *= angular;
 
         result+=ret;
-
         khiAB=khiAC;
-        if(timestorun==2){
+        
+        if(timestorun>1){
             fptype swpmass = m12;
             m12 = m13;
             m13 = swpmass;
@@ -1307,16 +1307,16 @@ HanhartPWave::HanhartPWave(std::string name,
 
     std::ifstream rd("/home/juan/juan/work/GooFit/src/PDFs/physics/hanhart/hanhart_scalar_ff.txt");
     if(!rd.is_open()){
-        printf("file not loaded! \n");
+        printf("Hanhart P-Wave file not loaded! \n");
     }else{
-        printf("file loaded successfully \n");
+        printf("Hanhart P-Wave file loaded successfully \n");
     }
     fptype s,mag_,phase_ = 0.;
     std::vector<fptype> host_hanhart_s_pipi;
     std::vector<fptype> host_hanhart_coefs_pipi;
 
     while(rd>>s>>mag_>>phase_){
-        s*=s;
+        
         phase_*=M_PI/180.;
 
             host_hanhart_s_pipi.push_back(s);
