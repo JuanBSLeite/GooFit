@@ -389,19 +389,22 @@ __host__ std::vector<std::vector<fptype>> DalitzPlotPdf::fit_fractions() {
             Amps_int[i][j] = (buffer / nEntries);
         }
     }
-
+    
     fptype total_PDF = buffer_all / nEntries;
     std::vector<std::vector<fptype>> ff(n_res, std::vector<fptype>(n_res));
+    double sum = 0.;
     printf("Fit Fractions in %: \n");
     for(size_t i = 0; i < n_res; i++){
         for(size_t j = 0; j < n_res; j++){
             ff[i][j] = (Amps_int[i][j]/total_PDF);
-	    if(i==j){
-		std::string name = getDecayInfo().resonances.at(j)->getName();
-		printf("Fit Fraction %s = %.2f\n",name.c_str(),ff[i][j]*100.);
+            if(i==j){
+                std::string name = getDecayInfo().resonances.at(j)->getName();
+                printf("Fit Fraction %s = %.4f\n",name.c_str(),ff[i][j]*100.);
+                sum+=ff[i][j]*100.;
+            }
 	    }
-	}
     }
+    printf("Sum of diag Fractions = %.4f \n",sum);
 
     return ff;
 }

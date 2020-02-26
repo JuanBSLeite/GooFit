@@ -47,7 +47,7 @@ class Application : public CLI::App {
     bool splash_;
     int argc_;
     char **argv_;
-
+    int localRank_;
     /// Handle control-c codes
     struct sigaction sigIntHandler;
 
@@ -62,6 +62,7 @@ class Application : public CLI::App {
     /// Get the set GPU device
     int get_device() const { return gpuDev_; }
 
+    int get_localRank() const {return localRank_;}
     /// simple run since argc and argv are stored
     void run() { parse(argc_, argv_); }
 

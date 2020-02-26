@@ -163,7 +163,7 @@ Application::Application(std::string discription, int argc, char **argv)
         // multiple GPU's, using one process
         gpuDev_ = 0;
     }
-
+    localRank_=localRank;
     std::cout << "MPI using CUDA device: " << gpuDev_ << std::endl;
     cudaSetDevice(gpuDev_);
 #endif

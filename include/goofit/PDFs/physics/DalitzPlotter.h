@@ -35,6 +35,9 @@ class DalitzPlotter {
     EventNumber eventNumber;
     UnbinnedDataSet data;
     fptype mother;
+    fptype daug1Mass;
+    fptype daug2Mass;
+    fptype daug3Mass;
     GooPdf * overallSignal = nullptr;
     DalitzPlotPdf * signalDalitz = nullptr;
     
@@ -84,6 +87,9 @@ class DalitzPlotter {
         , eventNumber(signalDalitz->_eventNumber)
         , data({m12, m13, eventNumber})
         , mother(signalDalitz->decayInfo.motherMass)
+        , daug1Mass(signalDalitz->decayInfo.daug1Mass)
+        , daug2Mass(signalDalitz->decayInfo.daug2Mass)
+        , daug3Mass(signalDalitz->decayInfo.daug3Mass)
         , overallSignal(overallSignal)
         , signalDalitz(signalDalitz)
         {
@@ -193,43 +199,41 @@ class DalitzPlotter {
         return dalitzplot;
     }
 
-    void Plot(double Mother_mass,double d1_mass,double d2_mass,double d3_mass, std::string sij, std::string sik , std::string sjk , std::string plotdir,UnbinnedDataSet data) {
-        
-        fptype s12_min = POW2(d1_mass  + d2_mass);
-        fptype s12_max = POW2(Mother_mass   - d3_mass);
-        fptype s13_min = POW2(d1_mass  + d3_mass);
-        fptype s13_max = POW2(Mother_mass    - d2_mass);
-        fptype s23_min = POW2(d2_mass  + d3_mass);
-        fptype s23_max = POW2(Mother_mass   - d1_mass);
+    void Plot( std::string sij, std::string sik, std::string sjk  , std::string plotdir ,UnbinnedDataSet data) {
 
-        m12.setNumBins(300);
-        m13.setNumBins(300);
-        TH1F m12_dat_hist("s12_dat_hist", "", m12.getNumBins(), s12_min, s12_max);
+        fptype s12_min = m12.getLowerLimit();
+        fptype s12_max = m12.getUpperLimit();
+        fptype s13_min = m13.getLowerLimit();
+        fptype s13_max = m13.getUpperLimit();
+        fptype s23_min = (daug2Mass + daug3Mass)*(daug2Mass + daug3Mass);
+        fptype s23_max = (mother - daug1Mass)*(mother - daug1Mass);
+
+        TH1F m12_dat_hist("s12_dat_hist", "", 200, s12_min, s12_max);
         m12_dat_hist.GetXaxis()->SetTitle( (sij+"[GeV]^{2}").c_str());
         m12_dat_hist.GetYaxis()->SetTitle("Events");
 
-        TH1F m12_pdf_hist("s12_pdf_hist", "", m12.getNumBins(), s12_min, s12_max);
+        TH1F m12_pdf_hist("s12_pdf_hist", "", 200, s12_min, s12_max);
 
-        TH1F m13_dat_hist("s13_dat_hist", "", m13.getNumBins(),s13_min, s13_max);
+        TH1F m13_dat_hist("s13_dat_hist", "", 200,s13_min, s13_max);
         m13_dat_hist.GetXaxis()->SetTitle( (sik+"[GeV]^{2}").c_str());
         m13_dat_hist.GetYaxis()->SetTitle("Events");
 
-        TH1F m13_pdf_hist("s13_pdf_hist", "", m13.getNumBins(), s13_min, s13_max);
+        TH1F m13_pdf_hist("s13_pdf_hist", "", 200, s13_min, s13_max);
 
-        TH1F m23_dat_hist("s23_dat_hist", "", m13.getNumBins(), s23_min, s23_max);
+        TH1F m23_dat_hist("s23_dat_hist", "",200, s23_min, s23_max);
         m23_dat_hist.GetXaxis()->SetTitle( (sjk+"[GeV]^{2}").c_str());
         m23_dat_hist.GetYaxis()->SetTitle("Events");
 
-        TH1F m23_pdf_hist("s23_pdf_hist", "", m13.getNumBins(), s23_min, s23_max);
+        TH1F m23_pdf_hist("s23_pdf_hist", "", 200, s23_min, s23_max);
 
         double totalPdf = 0;
         double totalDat = 0;
         TH2F dalitz_dat_hist("dalitz_data_hist",
                                 "",
-                                m12.getNumBins(),
+                                200,
                                 s12_min,
                                 s12_max,
-                                m13.getNumBins(),
+                                200,
                                 s13_min,
                                 s13_max);
         dalitz_dat_hist.SetStats(false);
@@ -237,10 +241,10 @@ class DalitzPlotter {
         dalitz_dat_hist.GetYaxis()->SetTitle((sik+"[GeV]^{2}").c_str());
         TH2F dalitz_pdf_hist("dalitz_pdf_hist",
                                 "",
-                               m12.getNumBins(),
+                               200,
                                 s12_min,
                                 s12_max,
-                                m13.getNumBins(),
+                                200,
                                 s13_min,
                                 s13_max);
 
@@ -263,7 +267,7 @@ class DalitzPlotter {
             do {
                 m12.setValue(donram.Uniform(s12_min, s12_max));
                 m13.setValue(donram.Uniform(s13_min,s13_max));
-            } while(!inDalitz(m12.getValue(), m13.getValue(), Mother_mass, d1_mass, d2_mass, d3_mass));
+            } while(!inDalitz(m12.getValue(), m13.getValue(), mother, daug1Mass, daug2Mass, daug3Mass));
 
                 eventNumber.setValue(evtCounter);
                 evtCounter++;
@@ -274,7 +278,7 @@ class DalitzPlotter {
         signalDalitz->setDataSize(currData.getNumEvents());
         std::vector<std::vector<double>> pdfValues = overallSignal->getCompProbsAtDataPoints();
 
-        Variable massSum("massSum", POW2(Mother_mass) + POW2(d1_mass) + POW2(d2_mass) + POW2(d3_mass));
+        Variable massSum("massSum", POW2(mother) + POW2(daug1Mass) + POW2(daug2Mass) + POW2(daug3Mass));
 
 
         for(unsigned int j = 0; j < pdfValues[0].size(); ++j) {
@@ -297,7 +301,7 @@ class DalitzPlotter {
         dalitz_pdf_hist.Draw("colz");
 
         foo.SaveAs( (plotdir+"/dalitz_pdf.png").c_str() );
-
+       
         for(unsigned int evt = 0; evt < data.getNumEvents(); ++evt) {
             double data_m12 = data.getValue(m12, evt);
             m12_dat_hist.Fill(data_m12);
@@ -316,76 +320,91 @@ class DalitzPlotter {
         drawFitPlotsWithPulls(&m23_dat_hist, &m23_pdf_hist, plotdir);
     }
 
-    void chi2(size_t npar, std::string bins_file, float min_x, float max_x,float min_y, float max_y, size_t N,UnbinnedDataSet data,UnbinnedDataSet toyMC ){
+    void chi2(size_t npar, std::string bins_file, float min_x, float max_x,float min_y, float max_y,UnbinnedDataSet data){
 
         TH2Poly* dp_data = new TH2Poly("dp_data","",min_x,max_x,min_y,max_y);
-	       TH2Poly*  dp_toy = new TH2Poly("dp_toy","",min_x,max_x,min_y,max_y);
-	       TH2Poly*  dp_pdf = new TH2Poly("dp_pdf","",min_x,max_x,min_y,max_y);
-               TH2Poly*  residuals = new TH2Poly("dp_pdf","",min_x,max_x,min_y,max_y);
-	       TH1F* Proj = new TH1F("projection","",50,-5.,+5.);
+	    TH2Poly*  dp_toy = new TH2Poly("dp_toy","",min_x,max_x,min_y,max_y);
+	    TH2Poly*  dp_pdf = new TH2Poly("dp_pdf","",min_x,max_x,min_y,max_y);
+        TH2Poly*  residuals = new TH2Poly("dp_pdf","",min_x,max_x,min_y,max_y);
+	    TH1F* Proj = new TH1F("projection","",50,-5.,+5.);
 
-	std::ifstream w(bins_file.c_str());
-	double min1,max1,min2,max2;
-	
-	while(w>>min1>>min2>>max1>>max2){
-		dp_data->AddBin(min1,max1,min2,max2);
-		dp_toy->AddBin(min1,max1,min2,max2);
-		dp_pdf->AddBin(min1,max1,min2,max2);
-		residuals->AddBin(min1,max1,min2,max2);
-	}
+        fptype s12_min = m12.getLowerLimit();
+        fptype s12_max = m12.getUpperLimit();
+        fptype s13_min = m13.getLowerLimit();
+        fptype s13_max = m13.getUpperLimit();
 
-	//fill dp_data
-	for(size_t i = 0; i < data.getNumEvents(); i++){
-		data.loadEvent(i);
-		if(m12.getValue()<m13.getValue()){
-			dp_data->Fill(m12.getValue(),m13.getValue());
-		}
-        if(m13.getValue()>m12.getValue()){
-			dp_data->Fill(m13.getValue(),m12.getValue());
-		}
-	}
+        std::ifstream w(bins_file.c_str());
+        double min1,max1,min2,max2;
+        
+        while(w>>min1>>min2>>max1>>max2){
+            dp_data->AddBin(min1,max1,min2,max2);
+            dp_toy->AddBin(min1,max1,min2,max2);
+            dp_pdf->AddBin(min1,max1,min2,max2);
+            residuals->AddBin(min1,max1,min2,max2);
+        }
 
-	//fill dp_toy(pdf);
-	for(size_t i = 0; i < toyMC.getNumEvents(); i++){
-		toyMC.loadEvent(i);
-		if(m12.getValue()<m13.getValue()){
-			dp_toy->Fill(m12.getValue(),m13.getValue());
-			dp_pdf->Fill(m12.getValue(),m13.getValue());
-		}
-        if(m13.getValue()>m12.getValue()){
-			dp_toy->Fill(m13.getValue(),m12.getValue());
-			dp_pdf->Fill(m13.getValue(),m12.getValue());
-		}
-	}
+        w.close();
+
+         //fill dp_data
+        for(size_t i = 0; i < data.getNumEvents(); i++){
+            data.loadEvent(i);
+            if(m12.getValue()<m13.getValue()){
+                dp_data->Fill(m12.getValue(),m13.getValue());
+            }
+            if(m13.getValue()>m12.getValue()){
+                dp_data->Fill(m13.getValue(),m12.getValue());
+            }
+        }
+
+        
+        int NevG = 1e7;
+        int evtCounter = 0;
+        TRandom3 donram(50);
+
+        UnbinnedDataSet toyMC({m12,m13,eventNumber});
+        fillDataSetMC(toyMC,NevG);
+
+        for(size_t i = 0; i < toyMC.getNumEvents(); i++){
+            toyMC.loadEvent(i);
+            if(m12.getValue()<m13.getValue()){
+                dp_toy->Fill(m12.getValue(),m13.getValue());
+                dp_pdf->Fill(m12.getValue(),m13.getValue());
+            }
+            if(m13.getValue()>m12.getValue()){
+                dp_toy->Fill(m13.getValue(),m12.getValue());
+                dp_pdf->Fill(m13.getValue(),m12.getValue());
+            }
+        }
+
         double scale = double(data.getNumEvents())/double(toyMC.getNumEvents());
-	dp_pdf->Scale(scale);
+        dp_pdf->Scale(scale);
 
-	//number of adaptative bins
-	size_t nbins = dp_toy->GetNumberOfBins();
-	fptype chi2 = 0;
-	for(size_t i = 1; i <= nbins ; ++i){
-		auto diff = dp_pdf->GetBinContent(i) - dp_data->GetBinContent(i);
-		auto errSq  = pow( (dp_pdf->GetBinContent(i)/dp_toy->GetBinContent(i))*dp_toy->GetBinError(i),2) + dp_data->GetBinContent(i);
-		chi2 += diff*diff/errSq;
-		residuals->SetBinContent(i,diff/sqrt(errSq));
-                Proj->Fill(diff/sqrt(dp_pdf->GetBinContent(i)));
-       
-	}
+        //number of adaptative bins
+        size_t nbins = dp_toy->GetNumberOfBins();
+        fptype chi2 = 0;
+        for(size_t i = 1; i <= nbins ; ++i){
+            auto diff = dp_pdf->GetBinContent(i) - dp_data->GetBinContent(i);
+            auto errSq  = pow( (dp_pdf->GetBinContent(i)/dp_toy->GetBinContent(i))*dp_toy->GetBinError(i),2) + dp_data->GetBinContent(i);
+            chi2 += diff*diff/errSq;
+            residuals->SetBinContent(i,diff/sqrt(errSq));
+            Proj->Fill(diff/sqrt(dp_pdf->GetBinContent(i)));
+        
+        }
 
-	TCanvas foo("foo","",1020,720);
-	residuals->Draw("colz");
-	gStyle->SetOptStat(0);
-	foo.SaveAs("plots/residuals.png");
+        TCanvas foo("foo","",1020,720);
+        residuals->Draw("colz");
+        gStyle->SetOptStat(0);
+        foo.SaveAs("plots/residuals.png");
 
-	gStyle->SetOptFit(1111);
-	Proj->Fit("gaus");
-	Proj->Draw("E");
-	foo.SaveAs("plots/Residuals_proj.png");
+        gStyle->SetOptFit(1111);
+        Proj->Fit("gaus");
+        Proj->Draw("E");
+        foo.SaveAs("plots/Residuals_proj.png");
 
-	fptype ndof = nbins - npar -1;
+        fptype ndof = nbins - npar -1;
 
-	std::cout << "chi2/ndof is within the range [" << (chi2/ndof) << " - " << (chi2/(nbins-1)) << "] and the p-value is [" << TMath::Prob(chi2,ndof) << " - " << TMath::Prob(chi2,nbins-1)<< "]" << std::endl;	
-	
+        std::cout << "chi2/ndof is within the range [" << (chi2/ndof) << " - " << (chi2/(nbins-1)) << "] and the p-value is [" << TMath::Prob(chi2,ndof) << " - " << TMath::Prob(chi2,nbins-1)<< "]" << std::endl;	
+        
 	
 }
 

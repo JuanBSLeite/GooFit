@@ -607,7 +607,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
         }
     }
 
-    return (g1>0 && g2>0) ? ret : fpcomplex(0.,0.);
+    return (g1>0. && g2>0. ) ? ret : fpcomplex(0.,0.);
 }
 
 //from http://arxiv.org/abs/1409.2213v4 and http://arxiv.org/abs/0704.3652v3
@@ -761,12 +761,12 @@ __device__ fpcomplex cubicspline(fptype m12, fptype m13, fptype m23, unsigned in
         aa3  = aa * aa * aa;
         bb3  = bb * bb * bb;
 
-        ret.real(ret.real() + aa * pwa_coefs_real_kloAB + bb * pwa_coefs_real_khiAB
-                 + ((aa3 - aa) * pwa_coefs_prime_real_kloAB + (bb3 - bb) * pwa_coefs_prime_real_khiAB) * (dmKK * dmKK)
-                       / 6.0);
-        ret.imag(ret.imag() + aa * pwa_coefs_imag_kloAB + bb * pwa_coefs_imag_khiAB
-                 + ((aa3 - aa) * pwa_coefs_prime_imag_kloAB + (bb3 - bb) * pwa_coefs_prime_imag_khiAB) * (dmKK * dmKK)
-                       / 6.0);
+        ret.real(ret.real() + aa * pwa_coefs_real_kloAB + bb * pwa_coefs_real_khiAB);
+              //   + ((aa3 - aa) * pwa_coefs_prime_real_kloAB + (bb3 - bb) * pwa_coefs_prime_real_khiAB) * (dmKK * dmKK)
+              //         / 6.0);
+        ret.imag(ret.imag() + aa * pwa_coefs_imag_kloAB + bb * pwa_coefs_imag_khiAB);
+              //   + ((aa3 - aa) * pwa_coefs_prime_imag_kloAB + (bb3 - bb) * pwa_coefs_prime_imag_khiAB) * (dmKK * dmKK)
+              //         / 6.0);
         khiAB = khiAC;
         mAB   = mAC;
     }
@@ -841,12 +841,12 @@ __device__ fpcomplex cubicsplinePolar(fptype m12, fptype m13, fptype m23, unsign
         aa3  = aa * aa * aa;
         bb3  = bb * bb * bb;
 
-        ret.real(ret.real() + aa * pwa_coefs_real_kloAB + bb * pwa_coefs_real_khiAB
-                 + ((aa3 - aa) * pwa_coefs_prime_real_kloAB + (bb3 - bb) * pwa_coefs_prime_real_khiAB) * (dmKK * dmKK)
-                       / 6.0);
-        ret.imag(ret.imag() + aa * pwa_coefs_imag_kloAB + bb * pwa_coefs_imag_khiAB
-                 + ((aa3 - aa) * pwa_coefs_prime_imag_kloAB + (bb3 - bb) * pwa_coefs_prime_imag_khiAB) * (dmKK * dmKK)
-                       / 6.0);
+        ret.real(ret.real() + aa * pwa_coefs_real_kloAB + bb * pwa_coefs_real_khiAB);
+                // + ((aa3 - aa) * pwa_coefs_prime_real_kloAB + (bb3 - bb) * pwa_coefs_prime_real_khiAB) * (dmKK * dmKK)
+                //       / 6.0);
+        ret.imag(ret.imag() + aa * pwa_coefs_imag_kloAB + bb * pwa_coefs_imag_khiAB);
+                // + ((aa3 - aa) * pwa_coefs_prime_imag_kloAB + (bb3 - bb) * pwa_coefs_prime_imag_khiAB) * (dmKK * dmKK)
+                //       / 6.0);
 
         khiAB = khiAC;
         mAB   = mAC;
