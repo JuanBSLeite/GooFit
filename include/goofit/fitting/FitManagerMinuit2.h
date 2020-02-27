@@ -41,11 +41,16 @@ class FitManagerMinuit2 {
     /// Get the fitting verbosity
     int getVerbosity() const { return verbosity; }
 
+    void setTolerance(double tolerance){ tolerance_=tolerance;}
+
+    double getTolerance(){return tolerance_;}
+
   private:
     Params upar_;
     FCN fcn_;
     unsigned int maxfcn_{0};
     FitErrors retval_{FitErrors::NotRun};
     int verbosity{3};
+    double tolerance_{0.1};
 };
 } // namespace GooFit
