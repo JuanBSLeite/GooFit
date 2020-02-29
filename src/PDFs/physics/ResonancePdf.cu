@@ -43,7 +43,7 @@ __device__ fptype kallenFunction( const fptype &m,
     ) {
 
     fptype q = m*m + m1*m1 + m2*m2 - 2*m*m1 - 2*m*m2 - 2*m1*m2;
-    q = q>0.?q:-q;
+    q = q>0.?q:0.;
 
     return sqrt(q)/m;
 }
@@ -610,6 +610,83 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
     return (g1>0. && g2>0. ) ? ret : fpcomplex(0.,0.);
 }
 
+__device__ fpcomplex prop_flatte(fptype s,fptype resmass, fptype g1, fptype g2, bool isf0) {
+
+    fptype pipmass = 0.13957018;
+    fptype pi0mass = 0.1349766;
+    fptype kpmass  = 0.493677;
+    fptype k0mass  = 0.497614;
+    fptype etamass     = 0.547862;
+
+    fptype mSumSq0_=0.;
+    fptype mSumSq1_=0.;
+    fptype mSumSq2_=0.;
+    fptype mSumSq3_=0.;
+
+    if(isf0==true){
+        mSumSq0_  = 4 * pi0mass * pi0mass;
+        mSumSq1_ = 4 * pipmass * pipmass;
+        mSumSq2_   = 4 * kpmass * kpmass;
+        mSumSq3_  = 4 * k0mass * k0mass;
+    }else{
+        mSumSq0_  = (etamass+pi0mass)*(etamass+pi0mass);
+        mSumSq1_ = (etamass+pi0mass)*(etamass+pi0mass);
+        mSumSq2_   = (kpmass+kpmass)*(kpmass+kpmass);
+        mSumSq3_  = (k0mass+k0mass)*(k0mass+k0mass);
+    }
+
+    fpcomplex ret(0., 0.);
+    fptype rho1(0.0), rho2(0.0);
+
+    
+    fptype resmass2 = POW2(resmass);
+    fptype dMSq = resmass2 - s;
+
+    if (s > mSumSq0_) {
+        rho1 = sqrt(1.0 - mSumSq0_/s)/3.0;
+        if (s > mSumSq1_) {
+            rho1 += 2.0*sqrt(1.0 - mSumSq1_/s)/3.0;
+            if (s > mSumSq2_) {
+                rho2 = 0.5*sqrt(1.0 - mSumSq2_/s);
+                if (s > mSumSq3_) {
+                    rho2 += 0.5*sqrt(1.0 - mSumSq3_/s);
+                } else {
+                    // Continue analytically below higher channel thresholds
+                    // This contributes to the real part of the amplitude denominator
+                    dMSq += g2*resmass*0.5*sqrt(mSumSq3_/s - 1.0);
+                }
+            } else {
+                // Continue analytically below higher channel thresholds
+                // This contributes to the real part of the amplitude denominator
+                rho2 = 0.0;
+                dMSq += g2*resmass*(0.5*sqrt(mSumSq2_/s - 1.0) + 0.5*sqrt(mSumSq3_/s - 1.0));
+            }
+        } else {
+            // Continue analytically below higher channel thresholds
+            // This contributes to the real part of the amplitude denominator
+            dMSq += g1*resmass*2.0*sqrt(mSumSq1_/s - 1.0)/3.0;
+        }
+    
+    
+        //the Adler-zero term fA = (m2 − sA)/(m20 − sA) can be used to suppress false 
+        //kinematic singularities when m goes below threshold. For f(0)(980), sA = 0.
+        
+        fptype massFactor = 1.;
+        
+        fptype width1 = g1*rho1*massFactor;
+        fptype width2 = g2*rho2*massFactor;
+        fptype widthTerm = width1 + width2;
+    
+        fpcomplex resAmplitude(dMSq, widthTerm);
+    
+        ret = resAmplitude;
+       
+    
+    }
+
+    return (g1>0. && g2>0. ) ? ret : fpcomplex(0.,0.);
+}
+
 //from http://arxiv.org/abs/1409.2213v4 and http://arxiv.org/abs/0704.3652v3
 template<int I>
 __device__ fpcomplex a0_f0_Mixing(fptype m12, fptype m13, fptype m23, unsigned int *indices){
@@ -627,12 +704,9 @@ __device__ fpcomplex a0_f0_Mixing(fptype m12, fptype m13, fptype m23, unsigned i
     fptype a0_resmass             = cudaArray[indices[6]]; 
     fptype f0_resmass             = cudaArray[indices[7]];
 
-    const fptype pipmass = 0.13957018;
-    const fptype pimass  = 0.13804;
     const fptype kpmass  = 0.493677;
     const fptype k0mass  = 0.497614;
-    const fptype kmass   = 0.49565;
-    const fptype eta     = 0.54785;
+   
 
     fpcomplex ret(0.,0.);
 
@@ -640,6 +714,9 @@ __device__ fpcomplex a0_f0_Mixing(fptype m12, fptype m13, fptype m23, unsigned i
     for(int i = 0; i < I; i++) {
         fptype s    = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
         fptype m = sqrt(s);
+
+        //fpcomplex q_1 = s<POW2(2*kpmass)? fpcomplex(sqrt(1 -POW2(2*pipmass)/s),sqrt(-1 +POW2(2*kpmass)/s)): fpcomplex(sqrt(1 -POW2(2*pipmass)/s) + sqrt(1 -POW2(2*kpmass)/s),0);
+        //fpcomplex q_2 = s<POW2(2*k0mass)? fpcomplex(sqrt(1 -POW2(2*pipmass)/s), sqrt(-1 +POW2(2*k0mass)/s)): fpcomplex(sqrt(1 -POW2(2*pipmass)/s) + sqrt(1 -POW2(2*k0mass)/s));
 
         fptype q_1 = kallenFunction(s,POW2(kpmass),POW2(kpmass));
         fptype q_2 = kallenFunction(s,POW2(k0mass),POW2(k0mass));
@@ -650,39 +727,20 @@ __device__ fpcomplex a0_f0_Mixing(fptype m12, fptype m13, fptype m23, unsigned i
         fptype q2 = ( POW2(2*kpmass) - s)/POW2(kpmass);
         q2 = q2>0.?q2:1.;
         fptype photon_ex = (-1./(137.*32.*M_PI))*( log(q2) + log(2.) + (21.*1.20205)/(2*POW2(M_PI)) );
-
-        //lambda total
-        fpcomplex lambda = lambda_1_p_2 ;//+ g_a_kk*photon_ex*g_f_kk;
-
-        //flatte for a0
-        fptype q_eta_pi = rhoBC(s,POW2(eta),POW2(pipmass));
-        fptype gamma_eta_pi = 2.*POW2(g_a_eta_pi)*(q_eta_pi/(8.*M_PI*s));
-        fptype q_k_k = rhoBC(s,POW2(kmass),POW2(kmass));
-        fptype gamma_k_k = 2.*POW2(g_a_kk)*(q_k_k/(8.*M_PI*s));
-        fptype A = -s + POW2(a0_resmass);
-        fptype B = m*(gamma_eta_pi+gamma_k_k);
-        fpcomplex Da(A,B);
-
-        //flatte for f0
-        fptype q_pi_pi = rhoBC(s,POW2(pimass),POW2(pimass));
-        fptype gamma_pi_pi = 2.*POW2(g_f_pi_pi)*q_pi_pi/(8.*M_PI*s);
-        gamma_k_k = 2.*POW2(g_f_kk)*(q_k_k/(8.*M_PI*s));
-        A = -s + POW2(f0_resmass);
-        B = m*(gamma_pi_pi+gamma_k_k);
-        fpcomplex Df(A,B);
       
-        fpcomplex C = Df*Da - thrust::norm(lambda);
-        fpcomplex mix = Da/C ;                      //if you want a0-propagator with mixing just
-                                                    // change Da by Df in numerator!
-                                                    //if you want the mixing-propagtor change Da by lambda in numerator!
-       
+        //lambda total
+        fpcomplex lambda = lambda_1_p_2 + g_a_kk*photon_ex*g_f_kk;
+
+        fpcomplex Df = prop_flatte(s,f0_resmass,g_f_pi_pi,g_f_kk,true);
+        fpcomplex Da = prop_flatte(s,a0_resmass,g_a_eta_pi,g_a_kk,true);
+
+        fpcomplex C = Df*Da - lambda*lambda;
+        fpcomplex mix = Df/C ;  
+
         ret += mix;
-        
-        //printf("m12= %f : Df = (%f,%f) Da=(%f,%f) ret=(%f,%f) \n",m12,Df.real(),Df.imag(),Da.real(),Da.imag(),ret.real(),ret.imag());
+       
         if(I != 0) {
             fptype swpmass = m12;
-
-
             m12            = m13;
             m13            = swpmass;
         }
