@@ -3,6 +3,9 @@
 
 #include <goofit/detail/Complex.h>
 #include <thrust/transform_reduce.h>
+#include <thrust/random/uniform_real_distribution.h>
+#include <thrust/random/linear_congruential_engine.h>
+#include <thrust/random.h>
 
 namespace GooFit {
 
@@ -63,7 +66,7 @@ device_DalitzPlot_calcIntegrals(fptype m12, fptype m13, int res_i, int res_j, fp
     unsigned int params_i = RO_CACHE(indices[parameter_i + 3]);
     ret                   = getResonanceAmplitude(m12, m13, m23, functn_i, params_i);
 
-    int parameter_j       = parIndexFromResIndex_DP(res_j);
+    int parameter_j       = parIndexFromResIndex_DP(res_j); 
     unsigned int functn_j = RO_CACHE(indices[parameter_j + 2]);
     unsigned int params_j = RO_CACHE(indices[parameter_j + 3]);
     ret *= conj(getResonanceAmplitude(m12, m13, m23, functn_j, params_j));
@@ -346,6 +349,7 @@ __host__ fpcomplex DalitzPlotPdf::sumCachedWave(size_t i) const {
     return ret;
 }
 
+
 __host__ std::vector<std::vector<fptype>> DalitzPlotPdf::fit_fractions() {
     GOOFIT_DEBUG("Performing fit fraction calculation, should already have a cache (does not use normalization grid)");
 
@@ -404,10 +408,65 @@ __host__ std::vector<std::vector<fptype>> DalitzPlotPdf::fit_fractions() {
             }
 	    }
     }
+    
     printf("Sum of diag Fractions = %.4f \n",sum);
 
     return ff;
 }
+
+/*__device__ fptype DalitzPlotPdf::fit_fractions(){
+
+    unsigned int *indices = paramIndices + parameters;
+    fptype motherMass = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 0]);
+    fptype daug1Mass  = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 1]);
+    fptype daug2Mass  = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 2]);
+    fptype daug3Mass  = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 3]);
+
+    fptype s12_min = (daug1Mass+daug2Mass)*(daug1Mass+daug2Mass);
+    fptype s13_min = (daug1Mass+daug3Mass)*(daug1Mass+daug3Mass);
+    fptype s12_max = (motherMass-daug3Mass)*(motherMass-daug3Mass);
+    fptype s13_max = (motherMass-daug2Mass)*(motherMass-daug2Mass);
+
+    size_t slices =  1.e+6;
+    size_t n_res    = getDecayInfo().resonances.size();
+
+    fptype ret(0.);
+    fptype buffer(0.);
+
+    for(int i = 0; i < n_res; i++){
+        for(int j = 0; j < n_res; j++){
+            for(int k=0; k<slices; k++){
+
+                int parameter_i       = parIndexFromResIndex_DP(i);
+                auto res_i              = getDecayInfo().resonances[i];
+                unsigned int functn_i = RO_CACHE(indices[parameter_i + 2]);
+                unsigned int params_i = RO_CACHE(indices[parameter_i + 3]);
+
+                int parameter_j       = parIndexFromResIndex_DP(j);
+                auto res_j            = getDecayInfo().resonances[j];
+                unsigned int functn_j = RO_CACHE(indices[parameter_j + 2]);
+                unsigned int params_j = RO_CACHE(indices[parameter_j + 3]);
+
+                fptype s12 = s12_min + (k+0.5)*s12_max/slices;
+                fptype s13 = s13_min + (k+0.5)*s13_max/slices;
+                fptype s23 = motherMass * motherMass + daug1Mass * daug1Mass + daug2Mass * daug2Mass + daug3Mass * daug3Mass - s12 - s13;
+
+                fpcomplex Amp_i = getResonanceAmplitude(s12, s13, s23, functn_i, params_i);
+                fpcomplex Amp_j = getResonanceAmplitude(s12, s13, s23, functn_j, params_j);
+                fpcomplex coef_i= fpcomplex(res_i->amp_real.getValue(),res_i->amp_imag.getValue());
+                fpcomplex coef_j= fpcomplex(res_j->amp_real.getValue(),res_j->amp_imag.getValue());
+
+                ret += thrust::norm(Amp_i*thrust::conj(Amp_j)*coef_i*thrust::conj(coef_j));
+
+            }
+        }
+        
+        buffer+=ret/slices;
+        
+    }
+
+    return (buffer/slices);
+}*/
 
 SpecialResonanceIntegrator::SpecialResonanceIntegrator(int pIdx, unsigned int ri, unsigned int rj)
     : resonance_i(ri)
@@ -441,7 +500,7 @@ __device__ fpcomplex SpecialResonanceIntegrator::operator()(thrust::tuple<int, f
     unsigned int *indices = paramIndices + parameters;
     fpcomplex ret
         = device_DalitzPlot_calcIntegrals(binCenterM12, binCenterM13, resonance_i, resonance_j, cudaArray, indices);
-
+    
     fptype fakeEvt[10]; // Need room for many observables in case m12 or m13 were assigned a high index in an
                         // event-weighted fit.
     fakeEvt[indices[indices[0] + 2 + 0]] = binCenterM12;

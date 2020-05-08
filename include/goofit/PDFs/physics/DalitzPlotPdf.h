@@ -38,6 +38,7 @@ class DalitzPlotPdf : public GooPdf {
 
     /// Calculate fit fractions (Cache should be pre-filled)
     __host__ std::vector<std::vector<fptype>> fit_fractions();
+   //__device__ fptype fit_fractions();
 
     friend DalitzPlotter;
 

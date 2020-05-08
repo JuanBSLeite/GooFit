@@ -232,7 +232,6 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
 
         ret *= BWFactors_Res*BWFactors_D;
         ret *= spinFactor(spin, c_motherMass, c_daug1Mass, c_daug2Mass, c_daug3Mass, m12, m13, m23, cyclic_index);
-
         result += ret;
                                           
         if(I != 0) {
@@ -807,11 +806,6 @@ __device__ fpcomplex cubicspline(fptype m12, fptype m13, fptype m23, unsigned in
         fptype pwa_coefs_prime_real_khiAB = cDeriatives[twokhiAB];
         fptype pwa_coefs_prime_imag_kloAB = cDeriatives[twokloAB + 1];
         fptype pwa_coefs_prime_imag_khiAB = cDeriatives[twokhiAB + 1];
-     
-      
-          /*printf("m12: %f: %f %f %f %f %f %f %d %d %d\n", mAB, mKKlimits[twokloAB], mKKlimits[twokhiAB],
-          pwa_coefs_real_khiAB, pwa_coefs_imag_khiAB, pwa_coefs_prime_real_khiAB, pwa_coefs_prime_imag_khiAB, khiAB,
-          khiAC, timestorun );*/
        
         dmKK = mKKlimits[khiAB] - mKKlimits[kloAB];
         aa   = (mKKlimits[khiAB] - mAB) / dmKK;
@@ -819,12 +813,12 @@ __device__ fpcomplex cubicspline(fptype m12, fptype m13, fptype m23, unsigned in
         aa3  = aa * aa * aa;
         bb3  = bb * bb * bb;
 
-        ret.real(ret.real() + aa * pwa_coefs_real_kloAB + bb * pwa_coefs_real_khiAB);
-              //   + ((aa3 - aa) * pwa_coefs_prime_real_kloAB + (bb3 - bb) * pwa_coefs_prime_real_khiAB) * (dmKK * dmKK)
-              //         / 6.0);
-        ret.imag(ret.imag() + aa * pwa_coefs_imag_kloAB + bb * pwa_coefs_imag_khiAB);
-              //   + ((aa3 - aa) * pwa_coefs_prime_imag_kloAB + (bb3 - bb) * pwa_coefs_prime_imag_khiAB) * (dmKK * dmKK)
-              //         / 6.0);
+        ret.real(ret.real() + aa * pwa_coefs_real_kloAB + bb * pwa_coefs_real_khiAB
+                + ((aa3 - aa) * pwa_coefs_prime_real_kloAB + (bb3 - bb) * pwa_coefs_prime_real_khiAB) * (dmKK * dmKK)
+                      / 6.0);
+        ret.imag(ret.imag() + aa * pwa_coefs_imag_kloAB + bb * pwa_coefs_imag_khiAB
+                + ((aa3 - aa) * pwa_coefs_prime_imag_kloAB + (bb3 - bb) * pwa_coefs_prime_imag_khiAB) * (dmKK * dmKK)
+                     / 6.0);
         khiAB = khiAC;
         mAB   = mAC;
     }
@@ -899,12 +893,12 @@ __device__ fpcomplex cubicsplinePolar(fptype m12, fptype m13, fptype m23, unsign
         aa3  = aa * aa * aa;
         bb3  = bb * bb * bb;
 
-        ret.real(ret.real() + aa * pwa_coefs_real_kloAB + bb * pwa_coefs_real_khiAB);
-                // + ((aa3 - aa) * pwa_coefs_prime_real_kloAB + (bb3 - bb) * pwa_coefs_prime_real_khiAB) * (dmKK * dmKK)
-                //       / 6.0);
-        ret.imag(ret.imag() + aa * pwa_coefs_imag_kloAB + bb * pwa_coefs_imag_khiAB);
-                // + ((aa3 - aa) * pwa_coefs_prime_imag_kloAB + (bb3 - bb) * pwa_coefs_prime_imag_khiAB) * (dmKK * dmKK)
-                //       / 6.0);
+        ret.real(ret.real() + aa * pwa_coefs_real_kloAB + bb * pwa_coefs_real_khiAB
+                 + ((aa3 - aa) * pwa_coefs_prime_real_kloAB + (bb3 - bb) * pwa_coefs_prime_real_khiAB) * (dmKK * dmKK)
+                      / 6.0);
+        ret.imag(ret.imag() + aa * pwa_coefs_imag_kloAB + bb * pwa_coefs_imag_khiAB
+                 + ((aa3 - aa) * pwa_coefs_prime_imag_kloAB + (bb3 - bb) * pwa_coefs_prime_imag_khiAB) * (dmKK * dmKK)
+                      / 6.0);
 
         khiAB = khiAC;
         mAB   = mAC;
@@ -920,7 +914,7 @@ __device__ fpcomplex BE(fptype m12, fptype m13, fptype m23,unsigned int *indices
     const fptype mpisq = 0.01947977;
     fptype Q = sqrt(m23 - 4*mpisq);
     fptype Omega = exp(-Q*coef);
-
+    fptype Omega2= exp(-POW2(Q*0.42));
     return fpcomplex(Omega,0.);
 
 }
