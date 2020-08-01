@@ -96,12 +96,19 @@ __device__ fptype device_DalitzPlot(fptype *evt, fptype *p, unsigned int *indice
 
     for(int i = 0; i < numResonances; ++i) {
         int paramIndex = parIndexFromResIndex_DP(i);
-        fpcomplex amp
-            = fpcomplex(RO_CACHE(p[RO_CACHE(indices[paramIndex + 0])]), RO_CACHE(p[RO_CACHE(indices[paramIndex + 1])]));
 
+		fptype mag = RO_CACHE(p[RO_CACHE(indices[paramIndex + 0])]);
+		fptype  phase = RO_CACHE(p[RO_CACHE(indices[paramIndex + 1])]);
+        //fpcomplex amp = fpcomplex(mag*cos(phase),mag*sin(phase) );
+		fpcomplex amp = fpcomplex(mag,phase);
         // potential performance improvement by
         // double2 me = RO_CACHE(reinterpret_cast<double2*> (cResonances[i][evtNum]));
         fpcomplex me = RO_CACHE(cResonances[i][evtNum]);
+
+		//if(mag<0.){
+		//	amp = fpcomplex(0.,0.);
+		//	me	= fpcomplex(0.,0.);
+		//}
 
         // fpcomplex matrixelement((cResonances[cacheToUse][evtNum*numResonances + i]).real,
         //				     (cResonances[cacheToUse][evtNum*numResonances + i]).imag);

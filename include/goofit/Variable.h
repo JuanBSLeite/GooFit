@@ -5,7 +5,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-
+#include <random>
 #include <goofit/GlobalCudaDefines.h>
 #include <goofit/Log.h>
 
@@ -68,6 +68,14 @@ class Indexable {
     fptype getValue() const { return *value; }
     /// Set the value
     void setValue(fptype val) { *value = val; }
+
+    /// Set random value
+    void setRandomValue(fptype ll, fptype ul) { 
+		 std::random_device rd;
+		std::mt19937 gen(rd());
+		std::uniform_real_distribution<> dist(ll, ul);
+		*value = dist(gen); 
+	}
 
     /// Get the upper limit
     fptype getUpperLimit() const { return *upperlimit; }

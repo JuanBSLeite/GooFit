@@ -320,7 +320,7 @@ class DalitzPlotter {
         drawFitPlotsWithPulls(&m23_dat_hist, &m23_pdf_hist, plotdir);
     }
 
-    void chi2(size_t npar, std::string bins_file, float min_x, float max_x,float min_y, float max_y,UnbinnedDataSet data){
+    void chi2(size_t npar, std::string bins_file, float min_x, float max_x,float min_y, float max_y, UnbinnedDataSet data,std::string plotdir){
 
         TH2Poly* dp_data = new TH2Poly("dp_data","",min_x,max_x,min_y,max_y);
 	    TH2Poly*  dp_toy = new TH2Poly("dp_toy","",min_x,max_x,min_y,max_y);
@@ -357,7 +357,7 @@ class DalitzPlotter {
         }
 
         
-        int NevG = 1e7;
+        int NevG = 10000000;
         int evtCounter = 0;
         TRandom3 donram(50);
 
@@ -394,12 +394,14 @@ class DalitzPlotter {
         TCanvas foo("foo","",1020,720);
         residuals->Draw("colz");
         gStyle->SetOptStat(0);
-        foo.SaveAs("plots/residuals.png");
+	auto output = fmt::format("{0}/residuals.png",plotdir);
+        foo.SaveAs(output.c_str());
 
         gStyle->SetOptFit(1111);
         Proj->Fit("gaus");
         Proj->Draw("E");
-        foo.SaveAs("plots/Residuals_proj.png");
+	output = fmt::format("{0}/Residuals_proj.png",plotdir);
+        foo.SaveAs(output.c_str());
 
         fptype ndof = nbins - npar -1;
 

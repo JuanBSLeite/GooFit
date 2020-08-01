@@ -582,7 +582,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
         //the Adler-zero term fA = (m2 − sA)/(m20 − sA) can be used to suppress false 
         //kinematic singularities when m goes below threshold. For f(0)(980), sA = 0.
         
-        fptype massFactor = s/resmass2;
+        fptype massFactor = resmass;
         
         fptype width1 = g1*rho1*massFactor;
         fptype width2 = g2*rho2*massFactor;
@@ -592,8 +592,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
     
         fptype denomFactor = dMSq*dMSq + widthTerm*widthTerm;
     
-        fptype invDenomFactor = 0.0;
-        if (denomFactor > 1e-10) {invDenomFactor = 1.0/denomFactor;}
+        fptype invDenomFactor = 1.0/denomFactor;
     
         resAmplitude *= invDenomFactor;
 
@@ -606,7 +605,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
         }
     }
 
-    return (g1>0. && g2>0. ) ? ret : fpcomplex(0.,0.);
+    return ret ;
 }
 
 __device__ fpcomplex prop_flatte(fptype s,fptype resmass, fptype g1, fptype g2, bool isf0) {
