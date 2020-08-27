@@ -20,6 +20,9 @@
 #include <TMath.h>
 #include <TCanvas.h>
 #include <TRandom3.h>
+#include "TRatioPlot.h"
+#include "TText.h"
+#include "TLatex.h"
 #endif
 
 namespace GooFit {
@@ -70,9 +73,18 @@ class DalitzPlotter {
 
                 TCanvas foo("foo","",1020,720);
                
-                hd->Draw("E");
-                ht->Draw("HISTsame");
+                //hd->Draw("E");
+                //ht->Draw("HISTsame");
 
+                TRatioPlot *ratioPlot = new TRatioPlot(hd,ht,"diffsig");
+                ratioPlot->Draw();
+		ratioPlot->GetLowerRefGraph()->SetMinimum(-3);
+   		ratioPlot->GetLowerRefGraph()->SetMaximum(3);
+   	        std::vector<double> lines = {-3, -2, -1, 0, 1, 2, 3};
+		ratioPlot->GetUpperRefYaxis()->SetTitle("Entries");
+		ratioPlot->GetLowerRefYaxis()->SetTitle("Pulls");
+   		ratioPlot->SetGridlines(lines);	
+		foo.Update();
 
                 foo.SaveAs( (plotdir+"/"+obsname+"_fit.png").c_str()    );
 
@@ -201,6 +213,7 @@ class DalitzPlotter {
 
     void Plot( std::string sij, std::string sik, std::string sjk  , std::string plotdir ,UnbinnedDataSet data) {
 
+	gStyle->SetPalette(kRainBow);
         fptype s12_min = m12.getLowerLimit();
         fptype s12_max = m12.getUpperLimit();
         fptype s13_min = m13.getLowerLimit();
@@ -211,7 +224,7 @@ class DalitzPlotter {
         TH1F m12_dat_hist("s12_dat_hist", "", 200, s12_min, s12_max);
         m12_dat_hist.GetXaxis()->SetTitle( (sij+"[GeV]^{2}").c_str());
         m12_dat_hist.GetYaxis()->SetTitle("Events");
-
+        
         TH1F m12_pdf_hist("s12_pdf_hist", "", 200, s12_min, s12_max);
 
         TH1F m13_dat_hist("s13_dat_hist", "", 200,s13_min, s13_max);
@@ -287,6 +300,7 @@ class DalitzPlotter {
             double currm13 = currData.getValue(m13, j);
 
             dalitz_pdf_hist.Fill(currm12, currm13, pdfValues[0][j]);
+            dalitz_pdf_hist.Fill(currm13, currm12, pdfValues[0][j]);
             m12_pdf_hist.Fill(currm12, pdfValues[0][j]);
             m13_pdf_hist.Fill(currm13, pdfValues[0][j]);
             m23_pdf_hist.Fill( cpuGetM23(massSum,currm12, currm13) , pdfValues[0][j]);
@@ -295,7 +309,7 @@ class DalitzPlotter {
         
         }
 
-
+      
         TCanvas foo("foo","",1020,720);
         foo.SetLogz(true);
         dalitz_pdf_hist.Draw("colz");
@@ -309,24 +323,28 @@ class DalitzPlotter {
             m13_dat_hist.Fill(data_m13);
             m23_dat_hist.Fill(cpuGetM23(massSum,data_m12, data_m13));
             dalitz_dat_hist.Fill(data_m12, data_m13);
-            
+            dalitz_dat_hist.Fill(data_m13, data_m12);
             totalDat++;
         }
+
+         
+
         dalitz_dat_hist.Draw("colz");
         foo.SaveAs( (plotdir+"/dalitz_dat.png").c_str());
 
-        drawFitPlotsWithPulls(&m12_dat_hist, &m12_pdf_hist, plotdir);
-        drawFitPlotsWithPulls(&m13_dat_hist, &m13_pdf_hist, plotdir);
+        drawFitPlotsWithPulls(dalitz_dat_hist.ProjectionX("s12"),dalitz_pdf_hist.ProjectionX(""), plotdir);
+        drawFitPlotsWithPulls(dalitz_dat_hist.ProjectionY("s13"),dalitz_pdf_hist.ProjectionY(""), plotdir);
         drawFitPlotsWithPulls(&m23_dat_hist, &m23_pdf_hist, plotdir);
     }
 
-    void chi2(size_t npar, std::string bins_file, float min_x, float max_x,float min_y, float max_y, UnbinnedDataSet data,std::string plotdir){
+    void chi2(size_t npar, std::string bins_file, float min_x, float max_x,float min_y, float max_y, UnbinnedDataSet &data, std::string plotdir){
 
+	gStyle->SetPalette(kRainBow);
         TH2Poly* dp_data = new TH2Poly("dp_data","",min_x,max_x,min_y,max_y);
 	    TH2Poly*  dp_toy = new TH2Poly("dp_toy","",min_x,max_x,min_y,max_y);
 	    TH2Poly*  dp_pdf = new TH2Poly("dp_pdf","",min_x,max_x,min_y,max_y);
         TH2Poly*  residuals = new TH2Poly("dp_pdf","",min_x,max_x,min_y,max_y);
-	    TH1F* Proj = new TH1F("projection","",50,-5.,+5.);
+	    TH1F* Proj = new TH1F("projection","1D Residuals Projection",50,-5.,+5.);
 
         fptype s12_min = m12.getLowerLimit();
         fptype s12_max = m12.getUpperLimit();
@@ -345,8 +363,10 @@ class DalitzPlotter {
 
         w.close();
 
+        auto dt = new TH2F("data","",120,0.07,3.4,120,0.07,3.4);
          //fill dp_data
         for(size_t i = 0; i < data.getNumEvents(); i++){
+            dt->Fill(m12.getValue(),m13.getValue());
             data.loadEvent(i);
             if(m12.getValue()<m13.getValue()){
                 dp_data->Fill(m12.getValue(),m13.getValue());
@@ -363,9 +383,12 @@ class DalitzPlotter {
 
         UnbinnedDataSet toyMC({m12,m13,eventNumber});
         fillDataSetMC(toyMC,NevG);
+        auto uniform = new TH2F("uniform","",120,0.07,3.4,120,0.07,3.4);
+        
 
         for(size_t i = 0; i < toyMC.getNumEvents(); i++){
             toyMC.loadEvent(i);
+            uniform->Fill(m12.getValue(),m13.getValue());
             if(m12.getValue()<m13.getValue()){
                 dp_toy->Fill(m12.getValue(),m13.getValue());
                 dp_pdf->Fill(m12.getValue(),m13.getValue());
@@ -392,18 +415,42 @@ class DalitzPlotter {
         }
 
         TCanvas foo("foo","",1020,720);
-        residuals->Draw("colz");
+	residuals->SetTitle("Residuals");
+	residuals->GetXaxis()->SetTitle("s_{low}"); 
+	residuals->GetYaxis()->SetTitle("s_{high}");
+
+	residuals->Draw("colz");
+        fptype ndof = nbins - npar -1;
+	auto text = new TLatex(1.,1.,Form("#chi^{2} /ndof = [%.2f,%.2f]",chi2/ndof,chi2/(nbins-1)));
+	text->Draw();
+
         gStyle->SetOptStat(0);
-	auto output = fmt::format("{0}/residuals.png",plotdir);
+	    auto output = fmt::format("{0}/residuals.png",plotdir);
         foo.SaveAs(output.c_str());
 
         gStyle->SetOptFit(1111);
         Proj->Fit("gaus");
-        Proj->Draw("E");
+	foo.Clear();
+        //Proj->Draw("E");
+      	 
+	auto rp = new TRatioPlot(Proj);
+	std::vector<double> lines = {-3, -2, -1, 0, 1, 2, 3};
+   	rp->SetGridlines(lines);
+	rp->Draw();
+	rp->GetUpperRefYaxis()->SetTitle("Residuals");
+	rp->GetLowerRefGraph()->SetMinimum(-3);
+   	rp->GetLowerRefGraph()->SetMaximum(3);	
+	foo.Update();
+
 	output = fmt::format("{0}/Residuals_proj.png",plotdir);
         foo.SaveAs(output.c_str());
 
-        fptype ndof = nbins - npar -1;
+        //uniform->Draw("COLZ");
+        //foo.SaveAs("uniform.png");
+
+        dt->Draw("COLZ");
+        foo.SaveAs("data.png");
+
 
         std::cout << "chi2/ndof is within the range [" << (chi2/ndof) << " - " << (chi2/(nbins-1)) << "] and the p-value is [" << TMath::Prob(chi2,ndof) << " - " << TMath::Prob(chi2,nbins-1)<< "]" << std::endl;	
         
