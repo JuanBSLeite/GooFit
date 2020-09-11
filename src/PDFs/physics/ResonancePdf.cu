@@ -910,12 +910,14 @@ __device__ fpcomplex BE(fptype m12, fptype m13, fptype m23,unsigned int *indices
 
      
     fptype coef            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
+    fptype delta	   = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
     const fptype mpisq = 0.01947977;
     fptype Q = sqrt(m23 - 4*mpisq);
     fptype Omega = exp(-Q*coef);
-    fptype Omega2= exp(-POW2(Q*0.42));
-    return fpcomplex(Omega,0.);
 
+
+    return fpcomplex(1.,0.)*Omega*(1.+ delta*Q);
+//	return fpcomplex(1.,0.)*Omega;
 }
 
 //From PHYSICAL REVIEW D 96, 113003 (2017) and arXiv:1508.06841v2
@@ -1328,9 +1330,10 @@ SplinePolar::SplinePolar(std::string name,
     initialize(pindices);
 }
 
-BoseEinstein::BoseEinstein(std::string name,Variable ar, Variable ai, Variable coef)
+BoseEinstein::BoseEinstein(std::string name,Variable ar, Variable ai, Variable coef, Variable delta)
     : ResonancePdf(name, ar, ai) {
     pindices.push_back(registerParameter(coef));
+    pindices.push_back(registerParameter(delta));
     GET_FUNCTION_ADDR(ptr_to_BoseEinstein);
 
     initialize(pindices);
