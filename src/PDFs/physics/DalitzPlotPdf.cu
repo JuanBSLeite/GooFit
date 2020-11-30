@@ -35,7 +35,7 @@ constexpr int resonanceOffset_DP = 4; // Offset of the first resonance into the 
 // own cache, hence the '10'. Ten threads should be enough for anyone!
 
 // NOTE: This is does not support ten instances (ten threads) of resoncances now, only one set of resonances.
-__device__ fpcomplex *cResonances[20];
+__device__ fpcomplex *cResonances[16];
 
 __device__ inline int parIndexFromResIndex_DP(int resIndex) { return resonanceOffset_DP + resIndex * resonanceSize; }
 
@@ -139,6 +139,8 @@ __host__ DalitzPlotPdf::DalitzPlotPdf(
     , dalitzNormRange(nullptr)
     //, cachedWaves(0)
     , integrals(nullptr)
+    , integrals_ff(nullptr)
+    , integrators_ff(nullptr)
     , forceRedoIntegrals(true)
     , totalEventSize(3) // Default 3 = m12, m13, evtNum
     , cacheToUse(0)
@@ -185,6 +187,9 @@ __host__ DalitzPlotPdf::DalitzPlotPdf(
     cachedWidths = new fptype[decayInfo.resonances.size()];
     integrals    = new fpcomplex **[decayInfo.resonances.size()];
     integrators  = new SpecialResonanceIntegrator **[decayInfo.resonances.size()];
+    integrals_ff = new fpcomplex **[decayInfo.resonances.size()];
+    integrators_ff = new SpecialResonanceIntegrator **[decayInfo.resonances.size()];
+
     calculators  = new SpecialResonanceCalculator *[decayInfo.resonances.size()];
 
     for(int i = 0; i < decayInfo.resonances.size(); ++i) {
@@ -195,9 +200,15 @@ __host__ DalitzPlotPdf::DalitzPlotPdf(
         calculators[i]  = new SpecialResonanceCalculator(parameters, i);
         integrals[i]    = new fpcomplex *[decayInfo.resonances.size()];
 
+	integrals_ff[i]=new fpcomplex *[decayInfo.resonances.size()];
+	integrators_ff[i] = new SpecialResonanceIntegrator *[decayInfo.resonances.size()];
+
         for(int j = 0; j < decayInfo.resonances.size(); ++j) {
             integrals[i][j]   = new fpcomplex(0, 0);
             integrators[i][j] = new SpecialResonanceIntegrator(parameters, i, j);
+	    integrals_ff[i][j]   = new fpcomplex(0, 0);
+            integrators_ff[i][j] = new SpecialResonanceIntegrator(parameters, i, j);	
+
         }
     }
 
@@ -220,7 +231,7 @@ __host__ void DalitzPlotPdf::setDataSize(unsigned int dataSize, unsigned int evt
 
     numEntries = dataSize;
 
-    for(int i = 0; i < 20; i++) {
+    for(int i = 0; i < 16; i++) {
 #ifdef GOOFIT_MPI
         cachedWaves[i] = new thrust::device_vector<fpcomplex>(m_iEventsPerTask);
 #else
@@ -317,6 +328,16 @@ __host__ fptype DalitzPlotPdf::normalize() const {
                 *(integrators[i][j]),
                 dummy,
                 complexSum);
+
+	  integrators_ff[i][j]->setNoEff();
+            fpcomplex dummy_ff(0, 0);
+            thrust::plus<fpcomplex> complexSum_ff;
+            (*(integrals_ff[i][j])) = thrust::transform_reduce(
+                thrust::make_zip_iterator(thrust::make_tuple(binIndex, arrayAddress)),
+                thrust::make_zip_iterator(thrust::make_tuple(binIndex + totalBins, arrayAddress)),
+                *(integrators_ff[i][j]),
+                dummy_ff,
+                complexSum_ff);
         }
     }
 
@@ -362,61 +383,72 @@ __host__ std::vector<std::vector<fptype>> DalitzPlotPdf::fit_fractions() {
 
     size_t n_res    = getDecayInfo().resonances.size();
     size_t nEntries = getCachedWave(0).size();
-    printf("n_res = %d \n", n_res);
-    printf("n_entries = %d \n",nEntries);	
+//    printf("n_res = %d \n", n_res);
+  //  printf("n_entries = %d \n",nEntries);	
     std::vector<fpcomplex> coefs(n_res);
     std::transform(getDecayInfo().resonances.begin(),
                    getDecayInfo().resonances.end(),
                    coefs.begin(),
                    [](ResonancePdf *res) { return fpcomplex(res->amp_real.getValue(), res->amp_imag.getValue()); });
 
-    fptype buffer_all = 0;
-    fptype buffer;
+    //fptype buffer_all = 0;
+    //fptype buffer;
+    fpcomplex buffer_all(0.0);
+    fpcomplex buffer;
+
     fpcomplex coef_i;
     fpcomplex coef_j;
-    fpcomplex cached_i_val;
-    fpcomplex cached_j_val;
+    
+    //fpcomplex cached_i_val;
+    //fpcomplex cached_j_val;
 
-    thrust::device_vector<fpcomplex> cached_i;
-    thrust::device_vector<fpcomplex> cached_j;
+    //thrust::device_vector<fpcomplex> cached_i;
+    //thrust::device_vector<fpcomplex> cached_j;
     std::vector<std::vector<fptype>> Amps_int(n_res, std::vector<fptype>(n_res));
 
     for(size_t i = 0; i < n_res; i++) {
         for(size_t j = 0; j < n_res; j++) {
             buffer   = 0;
-            cached_i = getCachedWave(i);
-            cached_j = getCachedWave(j);
+            //cached_i = getCachedWave(i);
+            //cached_j = getCachedWave(j);
             coef_i   = coefs[i];
             coef_j   = coefs[j];
 
-            buffer += thrust::transform_reduce(
-                thrust::make_zip_iterator(thrust::make_tuple(cached_i.begin(), cached_j.begin())),
-                thrust::make_zip_iterator(thrust::make_tuple(cached_i.end(), cached_j.end())),
-                CoefSumFunctor(coef_i, coef_j),
-                (fptype)0.0,
-                thrust::plus<fptype>());
+            //buffer += thrust::transform_reduce(
+              //  thrust::make_zip_iterator(thrust::make_tuple(cached_i.begin(), cached_j.begin())),
+              //  thrust::make_zip_iterator(thrust::make_tuple(cached_i.end(), cached_j.end())),
+              //  CoefSumFunctor(coef_i, coef_j),
+              //  (fptype)0.0,
+              //  thrust::plus<fptype>());
 
-            buffer_all += buffer;
-            Amps_int[i][j] = (buffer / nEntries);
+            buffer= coef_i*thrust::conj<fptype>(coef_j)*(*(integrals_ff[i][j]));
+            //Amps_int[i][j] = (buffer / nEntries);
+
+	    buffer_all+=buffer;
+
+		if(i==j)
+			Amps_int[i][j] = buffer.real();
+		else
+			Amps_int[i][j] = 2.*buffer.real();
         }
     }
     
-    fptype total_PDF = buffer_all / nEntries;
+    fptype total_PDF = buffer_all.real();
     std::vector<std::vector<fptype>> ff(n_res, std::vector<fptype>(n_res));
     double sum = 0.;
-    printf("Fit Fractions in %: \n");
+//    printf("Fit Fractions in %: \n");
     for(size_t i = 0; i < n_res; i++){
         for(size_t j = 0; j < n_res; j++){
             ff[i][j] = (Amps_int[i][j]/total_PDF);
-            if(i==j){
-                std::string name = getDecayInfo().resonances.at(j)->getName();
-                printf("Fit Fraction %s = %.4f\n",name.c_str(),ff[i][j]*100.);
-                sum+=ff[i][j]*100.;
-            }
+            //if(i==j){
+            //    std::string name = getDecayInfo().resonances.at(j)->getName();
+            //    printf("Fit Fraction %s = %.4f\n",name.c_str(),ff[i][j]*100.);
+            //    sum+=ff[i][j]*100.;
+           // }
 	    }
     }
     
-    printf("Sum of diag Fractions = %.4f \n",sum);
+    //printf("Sum of diag Fractions = %.4f \n",sum);
 
     return ff;
 }
@@ -515,7 +547,7 @@ __device__ fpcomplex SpecialResonanceIntegrator::operator()(thrust::tuple<int, f
     unsigned int numResonances           = indices[2];
     int effFunctionIdx                   = parIndexFromResIndex_DP(numResonances);
     fptype eff                           = callFunction(fakeEvt, indices[effFunctionIdx], indices[effFunctionIdx + 1]);
-
+    if(m_no_eff) eff = 1;
     // Multiplication by eff, not sqrt(eff), is correct:
     // These complex numbers will not be squared when they
     // go into the integrals. They've been squared already,

@@ -125,20 +125,20 @@ __device__ fptype Gamma(const fptype &m,
 
 __device__ fptype h(const fptype &m,const fptype &q){
     const fptype mpi = 0.13957018;
-    return (2*q/M_PI*m)*log( (m+2*q)/2*mpi );
+    return (2*q/(M_PI*m))*log( (m+2*q)/(2*mpi) );
 }
 
 __device__ fptype h_prime(const fptype &m0,const fptype &q0){
-    return (h(m0,q0)*( (1./8*q0*q0) - (1./2*m0*m0) ) + (1./2*M_PI*m0*m0));
+    return (h(m0,q0)*( (1./(8*q0*q0)) - (1./(2*m0*m0) ) + (1./(2*M_PI*m0*m0))));
 }
 
 __device__ fptype d(const fptype &m0,const fptype &q0){
     const fptype mpi = 0.13957018;
-    return ((3.*POW2(mpi)/M_PI*POW2(q0))*log( (m0+2*q0)/2*mpi) + (m0/2.*M_PI*q0) - (POW2(mpi)*m0/M_PI*POW2(q0)*q0));
+    return ((3.*POW2(mpi)/(M_PI*POW2(q0)))*log( (m0+2*q0)/(2*mpi)) + (m0/(2.*M_PI*q0)) - (POW2(mpi)*m0/(M_PI*POW2(q0)*q0)));
 }
 
 __device__ fptype f(const fptype &m, const fptype &m0,const fptype &width , const fptype &q, const fptype &q0){
-    return width*(POW2(m0)/POW2(q0)*q0)*( POW2(q)*(h(m,q)-h(m0,q0)) + (POW2(m0)-POW2(m))*q0*q0*h_prime(m0,q0));
+    return width*(POW2(m0)/(POW2(q0)*q0))*(POW2(q)*(h(m,q)-h(m0,q0)) + (POW2(m0)-POW2(m))*q0*q0*h_prime(m0,q0));
 }
 
 //from Grace Young - New Package for RooFit Supporting Dalitz Analysis
@@ -241,7 +241,7 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
         }
     }
 
-    return reswidth>0 ? result : fpcomplex(0.,0.);
+    return result;//reswidth>0 ? result : fpcomplex(0.,0.);
 }
 
 //from Laura++
@@ -582,7 +582,7 @@ __device__ fpcomplex flatte(fptype m12, fptype m13, fptype m23, unsigned int *in
         //the Adler-zero term fA = (m2 − sA)/(m20 − sA) can be used to suppress false 
         //kinematic singularities when m goes below threshold. For f(0)(980), sA = 0.
         
-        fptype massFactor = resmass;
+        fptype massFactor = 1.;//resmass;
         
         fptype width1 = g1*rho1*massFactor;
         fptype width2 = g2*rho2*massFactor;

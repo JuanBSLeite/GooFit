@@ -1,11 +1,18 @@
 #pragma once
 
 #include <Minuit2/FunctionMinimum.h>
-
+#include <Minuit2/MnStrategy.h>
 #include <memory>
 
 #include <goofit/GlobalCudaDefines.h>
 #include <goofit/fitting/FCN.h>
+#include <TRandom3.h>
+#include <Eigen/Core>
+#include <Eigen/Eigenvalues>
+#include <TMath.h>
+
+
+using namespace Eigen;
 
 namespace GooFit {
 
@@ -45,6 +52,17 @@ class FitManagerMinuit2 {
 
     double getTolerance(){return tolerance_;}
 
+    void printCovMat();
+    double dpda(double, double);
+    double dpdb(double, double);
+    double dmda(double, double);
+    double dmdb(double, double);
+
+    std::vector <std::vector<double>> printParams();
+    void printOriginalParams();
+    void setRandMinuitValues (const int nSamples);
+    void loadSample(const int iSample);
+
   private:
     Params upar_;
     FCN fcn_;
@@ -52,5 +70,10 @@ class FitManagerMinuit2 {
     FitErrors retval_{FitErrors::NotRun};
     int verbosity{3};
     double tolerance_{0.1};
+    TRandom3 rnd;
+    Minuit2::MnUserCovariance matCov;
+    MatrixXd* sqrtCov;
+    std::vector<VectorXd> samples;
+    PdfBase *pdfPointer;
 };
 } // namespace GooFit

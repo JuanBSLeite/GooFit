@@ -62,6 +62,9 @@ class DalitzPlotPdf : public GooPdf {
     int cacheToUse;
     SpecialResonanceIntegrator ***integrators;
     SpecialResonanceCalculator **calculators;
+
+    SpecialResonanceIntegrator ***integrators_ff;
+    fpcomplex ***integrals_ff;
 };
 
 class SpecialResonanceIntegrator : public thrust::unary_function<thrust::tuple<int, fptype *>, fpcomplex> {
@@ -69,8 +72,9 @@ class SpecialResonanceIntegrator : public thrust::unary_function<thrust::tuple<i
     // Class used to calculate integrals of terms BW_i * BW_j^*.
     SpecialResonanceIntegrator(int pIdx, unsigned int ri, unsigned int rj);
     __device__ fpcomplex operator()(thrust::tuple<int, fptype *> t) const;
-
+    void setNoEff() {m_no_eff = true;}
   private:
+    bool m_no_eff = false;
     unsigned int resonance_i;
     unsigned int resonance_j;
     unsigned int parameters;
@@ -82,7 +86,10 @@ class SpecialResonanceCalculator : public thrust::unary_function<thrust::tuple<i
     SpecialResonanceCalculator(int pIdx, unsigned int res_idx);
     __device__ fpcomplex operator()(thrust::tuple<int, fptype *, int> t) const;
 
+    void setNoEff() {m_no_eff = true;}
+
   private:
+    bool m_no_eff = false;
     unsigned int resonance_i;
     unsigned int parameters;
 };

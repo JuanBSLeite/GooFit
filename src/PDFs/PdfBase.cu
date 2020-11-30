@@ -51,6 +51,19 @@ __host__ void PdfBase::copyParams() {
     copyParams(values);
 }
 
+__host__ void PdfBase::updateVariable(Variable var, fptype newValue) {
+    std::vector<Variable> pars = getParameters();
+    for(auto &i : pars) {
+        if(i.getName() == var.getName())
+            i.setValue(newValue);
+    }
+
+    for(auto &component : components)
+        component->updateVariable(var, newValue);
+}
+
+
+
 __host__ void PdfBase::copyNormFactors() const {
     MEMCPY_TO_SYMBOL(normalisationFactors, host_normalisation, totalParams * sizeof(fptype), 0, cudaMemcpyHostToDevice);
     cudaDeviceSynchronize(); // Ensure normalisation integrals are finished
@@ -114,6 +127,7 @@ __host__ void PdfBase::recursiveSetIndices() {
 
     generateNormRange();
 }
+
 
 __host__ void PdfBase::setIndices() {
     int counter = 0;

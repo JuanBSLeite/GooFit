@@ -101,6 +101,8 @@ class PdfBase {
     __host__ void setData(DataSet *data);
     __host__ DataSet *getData();
 
+    __host__ void updateVariable(Variable v, fptype newValue);
+
     __host__ virtual void setFitControl(std::shared_ptr<FitControl>) = 0;
     __host__ virtual bool hasAnalyticIntegral() const { return false; }
 
