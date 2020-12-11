@@ -429,7 +429,7 @@ __host__ std::vector<std::vector<fptype>> DalitzPlotPdf::fit_fractions() {
 		if(i==j)
 			Amps_int[i][j] = buffer.real();
 		else
-			Amps_int[i][j] = 2.*buffer.real();
+			Amps_int[i][j] = 2*buffer.real();
         }
     }
     

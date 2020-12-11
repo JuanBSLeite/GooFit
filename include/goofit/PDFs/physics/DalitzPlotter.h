@@ -377,7 +377,7 @@ class DalitzPlotter {
         }
 
         
-        int NevG = 1000000;
+        int NevG = 10000000;
         int evtCounter = 0;
         TRandom3 donram(50);
 
