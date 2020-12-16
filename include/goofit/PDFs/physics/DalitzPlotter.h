@@ -346,11 +346,6 @@ class DalitzPlotter {
         TH2Poly*  residuals = new TH2Poly("dp_pdf","",min_x,max_x,min_y,max_y);
 	    TH1F* Proj = new TH1F("projection","1D Residuals Projection",50,-5.,+5.);
 
-        fptype s12_min = m12.getLowerLimit();
-        fptype s12_max = m12.getUpperLimit();
-        fptype s13_min = m13.getLowerLimit();
-        fptype s13_max = m13.getUpperLimit();
-
         std::ifstream w(bins_file.c_str());
         double min1,max1,min2,max2;
         
@@ -378,7 +373,6 @@ class DalitzPlotter {
 
         
         int NevG = 10000000;
-        int evtCounter = 0;
         TRandom3 donram(50);
 
         UnbinnedDataSet toyMC({m12,m13,eventNumber});
