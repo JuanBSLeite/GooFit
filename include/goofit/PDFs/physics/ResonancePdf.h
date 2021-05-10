@@ -237,6 +237,13 @@ class BoseEinstein : public ResonancePdf {
     ~BoseEinstein() override = default;
 };
 
+
+class PelaezPdf : public ResonancePdf {
+  public:
+   PelaezPdf(std::string name, Variable ar, Variable ai);
+    ~PelaezPdf() override = default;
+};
+
 class HanhartPWave : public ResonancePdf {
   public:
    HanhartPWave(std::string name, Variable ar, Variable ai,

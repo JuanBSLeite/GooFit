@@ -70,10 +70,17 @@ class Indexable {
     void setValue(fptype val) { *value = val; }
 
     /// Set random value
-    void setRandomValue(fptype ll, fptype ul) { 
-		 std::random_device rd;
+    void setGaussianRandomValue(fptype ll, fptype ul) { 
+		std::random_device rd;
 		std::mt19937 gen(rd());
-		std::uniform_real_distribution<> dist(ll, ul);
+        std::normal_distribution<double> dist(ll,ul);
+		*value = dist(gen); 
+	}
+
+    void setUniformRandomValue(fptype ll, fptype ul) { 
+		std::random_device rd;
+		std::mt19937 gen(rd());
+        std::uniform_real_distribution<> dist(ll, ul);
 		*value = dist(gen); 
 	}
 

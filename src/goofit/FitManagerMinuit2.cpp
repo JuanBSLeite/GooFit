@@ -13,6 +13,8 @@
 
 #include <cuda_runtime.h>
 
+#include <fstream>
+
 namespace GooFit {
 
 FitManagerMinuit2::FitManagerMinuit2(PdfBase *dat)
@@ -29,7 +31,7 @@ Minuit2::FunctionMinimum FitManagerMinuit2::fit() {
     CLI::Timer timer{"The minimization took"};
 
     Minuit2::MnMigrad migrad{fcn_, upar_};
-    //migrad.SetPrecision(1.e-12); 
+    migrad.SetPrecision(1.e-18); 
     // Do the minimization
     if(verbosity > 0)
         std::cout << GooFit::gray << GooFit::bold;
@@ -94,13 +96,13 @@ double FitManagerMinuit2::dmdb(double a, double b)
 
 double FitManagerMinuit2::dpda(double a, double b)
 {
-	double ret = (360/2/TMath::Pi())*(-b/a/a)/(1+b*b/a/a);
+	double ret = (-b/(a*a + b*b));
 	return ret;
 }
 
 double FitManagerMinuit2::dpdb(double a, double b)
 {
-	double ret = (360/2/TMath::Pi())*(1/a)/(1+b*b/a/a);
+	double ret = (a/(a*a+b*b));
 	return ret;
 }
 
@@ -115,9 +117,10 @@ void FitManagerMinuit2::printOriginalParams()
 		}
 }
 
-std::vector <std::vector<double>> FitManagerMinuit2::printParams()
+std::vector <std::vector<double>> FitManagerMinuit2::printParams(std::string path)
 {
 
+	std::ofstream wt(path);
 
 	std::vector<Variable> vec_vars = pdfPointer->getParameters();
 	std::vector<double> floatVarVal;
@@ -143,8 +146,8 @@ std::vector <std::vector<double>> FitManagerMinuit2::printParams()
 		double a = floatVarVal[i];
 		double b = floatVarVal[i+1];
 		double mag = sqrt(a*a + b*b);
-		double phi = atan(b/a)*360/2/TMath::Pi();
-
+		double phi = atan(b/a)*180./TMath::Pi();
+		//std::cout << matCov(i,i) << '\t' << matCov(i+1,i+1) << '\t' << matCov(i,i+1) << '\n'; 
 		double mag_err = dmda(a,b)*dmda(a,b)*matCov(i,i)
 					 +dmdb(a,b)*dmdb(a,b)*matCov(i+1,i+1)
 					 +2*dmda(a,b)*dmdb(a,b)*matCov(i,i+1);
@@ -155,7 +158,7 @@ std::vector <std::vector<double>> FitManagerMinuit2::printParams()
 					 +dpdb(a,b)*dpdb(a,b)*matCov(i+1,i+1)
 					 +2*dpda(a,b)*dpdb(a,b)*matCov(i,i+1);
 		if(phi_err<0) phi_err=0;
-		phi_err = sqrt(phi_err);
+		phi_err = sqrt(phi_err)*180./TMath::Pi();
 
 		if(a<0&&b<0) phi-=180;
 		if(a<0&&b>0) phi+=180;
@@ -164,7 +167,7 @@ std::vector <std::vector<double>> FitManagerMinuit2::printParams()
 		vec_mag_err.push_back(mag_err);
 		vec_phi_err.push_back(phi_err);
 		std::cout << "coefficient Res #" << (i+2)/2 << ":  " << mag << " +- " << mag_err << "       " << phi << " +- " << phi_err << std::endl;
-
+		wt << "coefficient Res #" << (i+2)/2 << ":  " << mag << " +- " << mag_err << "       " << phi << " +- " << phi_err << std::endl;
 	}
 
 	std::vector <std::vector<double>> ret; ret.clear();

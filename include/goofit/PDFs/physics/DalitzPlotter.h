@@ -420,7 +420,9 @@ class DalitzPlotter {
 
         gStyle->SetOptStat(0);
 	    auto output = fmt::format("{0}/residuals.png",plotdir);
+	    auto output2 = fmt::format("{0}/residuals.root",plotdir);
         foo.SaveAs(output.c_str());
+	foo.SaveAs(output2.c_str());
 
         gStyle->SetOptFit(1111);
         Proj->Fit("gaus");

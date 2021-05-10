@@ -920,6 +920,53 @@ __device__ fpcomplex BE(fptype m12, fptype m13, fptype m23,unsigned int *indices
 //	return fpcomplex(1.,0.)*Omega;
 }
 
+//From Pelaez 
+__device__ fpcomplex Pelaez(fptype m12, fptype m13, fptype m23,unsigned int *indices){
+
+
+    fptype s    = sqrt(m23);
+    fptype m    = sqrt(s);
+    fptype m1   = 0.13957018;
+    fptype m2   = 0.13957018;
+    fptype m2sq   = m2*m2;
+   
+    fptype  pstr = Momentum(m,m1,m2);
+
+    fptype cotD2 = 1.;
+
+    if (m<1.) {
+
+        fptype B0 = -80.4;
+
+        fptype B1 = -73.6;
+
+        fptype shat = 1.05*1.05;
+
+        cotD2 = m/(2*pstr) * (m2sq/(s-2*m2sq)) * ( B0 + B1 * ((m - sqrt(shat - s)) / (m + sqrt(shat - s))) );
+
+    }
+
+    if (m>1.) {
+
+
+        fptype B0 = -123.;
+
+        fptype B1 = -118.;
+
+        fptype shat = 1.45*1.45;
+
+        cotD2 = m/(2*pstr) * m2sq/(s-2*m2sq) * ( B0 + B1 * (m - sqrt(shat - s)) / (m + sqrt(shat - s)) );
+
+    }   
+
+    double tanD2 = 1. / cotD2;
+
+    double delta2 = atan(tanD2);
+
+    return fpcomplex(sin(delta2)*cos(delta2),sin(delta2)*sin(delta2));
+
+}
+
 //From PHYSICAL REVIEW D 96, 113003 (2017) and arXiv:1508.06841v2
 __device__ fpcomplex hanhartpwave(fptype m12, fptype m13, fptype m23,unsigned int *indices){
 
@@ -1060,6 +1107,7 @@ __device__ resonance_function_ptr ptr_to_f0_MIXING_SYM = a0_f0_Mixing<2>;
 __device__ resonance_function_ptr ptr_to_SPLINE   = cubicspline;
 __device__ resonance_function_ptr ptr_to_SPLINE_POLAR   = cubicsplinePolar;
 __device__ resonance_function_ptr ptr_to_BoseEinstein = BE;
+__device__ resonance_function_ptr ptr_to_Pelaez = Pelaez;
 __device__ resonance_function_ptr ptr_to_hanhartpwave = hanhartpwave;
 
 
@@ -1338,6 +1386,15 @@ BoseEinstein::BoseEinstein(std::string name,Variable ar, Variable ai, Variable c
 
     initialize(pindices);
 
+    
+}
+
+PelaezPdf::PelaezPdf(std::string name,Variable ar, Variable ai)
+    : ResonancePdf(name, ar, ai) {
+    
+    GET_FUNCTION_ADDR(ptr_to_Pelaez);
+
+    initialize(pindices);
     
 }
 
