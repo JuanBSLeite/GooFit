@@ -108,12 +108,11 @@ double FitManagerMinuit2::dpdb(double a, double b)
 
 void FitManagerMinuit2::printOriginalParams()
 {
-	std::vector<Variable> vec_vars = pdfPointer->getParameters();
+	auto vec_vars = pdfPointer->getParameters();
 	std::vector<double> floatVarVal, floatVarErr;
-		for(Variable &var : vec_vars) {
+		for(auto var : vec_vars) {
 			if (var.IsFixed()) continue;
-			std::cout << var.getValue() << std::endl;
-			std::cout << var.getError() << std::endl;
+			std::cout << var.getName() << "\t" << var.getValue() << std::endl;
 		}
 }
 
@@ -128,7 +127,7 @@ std::vector <std::vector<double>> FitManagerMinuit2::printParams(std::string pat
 
 	for(Variable &var : vec_vars) {
 		if (var.IsFixed()) continue;
-		int counter = var.getFitterIndex();
+		//int counter = var.getFitterIndex();
 		floatVarVal.push_back(var.getValue());
 
 	}
@@ -176,79 +175,40 @@ std::vector <std::vector<double>> FitManagerMinuit2::printParams(std::string pat
 	return ret;
 }
 
-__global__ void AdjointEigenSolver(MatrixXd *d_A,MatrixXd *d_out){
-
-	SelfAdjointEigenSolver<MatrixXd> se(*d_A);
-	d_out = new MatrixXd(se.operatorSqrt());
-}
 
 void FitManagerMinuit2::setRandMinuitValues (const int nSamples){
-	rnd.SetSeed(nSamples+388);
+	rnd.SetSeed(nSamples+7436);
 	std::vector<double> floatVarVal;
 	floatVarVal.clear();
 	std::vector<double> floatVarErr;
 	floatVarErr.clear();
-	//std::vector<Variable> vec_vars = upar_.get_vars();
 	std::vector<Variable> vec_vars = pdfPointer->getParameters();
-//	fvarIndex.clear();
 	for(Variable &var : vec_vars) {
 		if (var.IsFixed()) continue;
-		int counter = var.getFitterIndex();
-//		fvarIndex.push_back(var.getFitterIndex());
+		//int counter = var.getFitterIndex();
 		floatVarVal.push_back(var.getValue());
 		floatVarErr.push_back(var.getError());
-//		std::cout << "check for Index " << counter << ": value = " << var.getValue() << "  ;  error = " << var.getError() << std::endl;
 	}
 	const int nFPars = floatVarVal.size();
-	VectorXd vmean(nFPars);
-	for (int i = 0; i < nFPars; i++)
-		vmean(i) = floatVarVal[i];
-
-	MatrixXd A(nFPars,nFPars);
-        //MatrixXd out(nFPars,nFPars);
-	const int n = matCov.Nrow();
-	if(nFPars != n) std::cout <<"Error!!!!!!!!" << std::endl;
-	for (int ii = 0; ii < n; ii++)
-		for (int jj = 0; jj < n; jj++)
-			A(ii,jj) = matCov(ii,jj);
-
-	//MatrixXd *d_A;
-	//MatrixXd *d_out;
-	
-	//cudaMalloc((void **)&d_A, sizeof(Eigen::MatrixXd)*nFPars);
-	//cudaMalloc((void **)&d_out, sizeof(Eigen::MatrixXd)*nFPars);
-
-	//cudaMemcpy(d_A, A.data(), sizeof(Eigen::MatrixXd)*nFPars, cudaMemcpyHostToDevice);
-	//cudaMemcpy(d_out, out.data(), sizeof(Eigen::MatrixXd)*nFPars, cudaMemcpyHostToDevice);
-	SelfAdjointEigenSolver<MatrixXd> es(A);
-	//AdjointEigenSolver(d_A,d_out);
-
-	//cudaMemcpy(out, d_out, sizeof(Eigen::MatrixXd)*nFPars, cudaMemcpyDeviceToHost);
-	
-	sqrtCov = new MatrixXd(es.operatorSqrt());
-
 
 	VectorXd vy(nFPars);
 	samples.clear();
+
 	for (int ii=0;ii<nSamples;ii++){
-		for (int i=0;i<nFPars;i++) 
-			vy(i) = rnd.Gaus(0,1);
-		vy = vmean + (*sqrtCov) * vy;
-//		std::cout<<"Mean and random: "<<std::endl<<vmean<<std::endl<<vy<<std::endl;
-		samples.push_back(vy);
+		for (int i=0;i<nFPars;i++){ 
+			vy(i) = 1.;//rnd.Gaus(floatVarVal[i],1);
+		}
+	
+		samples.emplace_back(vy);
 	}
 }
 
-
 void FitManagerMinuit2::loadSample (const int iSample){
-//	std::vector<Variable> vec_vars = upar_.get_vars();
-	std::vector<Variable> vec_vars = pdfPointer->getParameters();
+	auto var = pdfPointer->getParameters();
 	int counter = 0;
-//	for(int i = 0; i < vec_vars.size(); ++i){
-	for(Variable &var : vec_vars){
-		if (var.IsFixed()) continue;
-//		std::cout << "load value Index " << var.getFitterIndex() << " : " << samples[iSample][counter] << std::endl;
-		pdfPointer->updateVariable(var,(fptype)samples[iSample][counter]);
+	for(int i = 0; i < var.size(); ++i){
+		if (var[i].IsFixed()) continue;
+		pdfPointer->updateVariable(var[i],samples[iSample](counter));
 		counter++;
 	}
 }

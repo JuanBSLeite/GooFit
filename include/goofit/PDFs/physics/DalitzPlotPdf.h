@@ -37,8 +37,7 @@ class DalitzPlotPdf : public GooPdf {
     __host__ DecayInfo3 &getDecayInfo() { return decayInfo; }
 
     /// Calculate fit fractions (Cache should be pre-filled)
-    __host__ std::vector<std::vector<fptype>> fit_fractions();
-   //__device__ fptype fit_fractions();
+    __host__ std::vector<std::vector<fptype>> fit_fractions(unsigned int nBins);
 
     friend DalitzPlotter;
 
@@ -65,6 +64,8 @@ class DalitzPlotPdf : public GooPdf {
 
     SpecialResonanceIntegrator ***integrators_ff;
     fpcomplex ***integrals_ff;
+
+    fptype totalFF_integral;
 };
 
 class SpecialResonanceIntegrator : public thrust::unary_function<thrust::tuple<int, fptype *>, fpcomplex> {

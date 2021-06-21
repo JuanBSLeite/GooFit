@@ -168,8 +168,7 @@ __host__ int GooPdf::findFunctionIdx(void *dev_functionPtr) {
     host_function_table[num_device_functions]        = dev_functionPtr;
     functionAddressToDeviceIndexMap[dev_functionPtr] = num_device_functions;
     num_device_functions++;
-    MEMCPY_TO_SYMBOL(
-        device_function_table, host_function_table, num_device_functions * sizeof(void *), 0, cudaMemcpyHostToDevice);
+    MEMCPY_TO_SYMBOL(device_function_table, host_function_table, num_device_functions * sizeof(void *), 0, cudaMemcpyHostToDevice);
 
 #ifdef PROFILING
     host_timeHist[fIdx] = 0;
@@ -217,7 +216,6 @@ __host__ double GooPdf::sumOfNll(int numVars) const {
     thrust::constant_iterator<fptype *> arrayAddress(dev_event_array);
     double dummy = 0;
 
-    // if (host_callnumber >= 2) GooFit::abort(__FILE__, __LINE__, getName() + " debug abort", this);
     thrust::counting_iterator<int> eventIndex(0);
 
     double ret;
@@ -264,22 +262,8 @@ __host__ double GooPdf::sumOfNll(int numVars) const {
 }
 
 __host__ double GooPdf::calculateNLL() const {
-    // if (cpuDebug & 1) std::cout << getName() << " entering calculateNLL (" << host_callnumber << ")" << std::endl;
-
-    // MEMCPY_TO_SYMBOL(callnumber, &host_callnumber, sizeof(int));
-    // int oldMask = cpuDebug;
-    // if (0 == host_callnumber) setDebugMask(0, false);
-    // std::cout << "Start norm " << getName() << std::endl;
     normalize();
-    // std::cout << "Norm done\n";
-    // if ((0 == host_callnumber) && (1 == oldMask)) setDebugMask(1, false);
-
-    // if (cpuDebug & 1) {
-    // std::cout << "Norm factors: ";
-    // for (int i = 0; i < totalParams; ++i) std::cout << host_normalisation[i] << " ";
-    // std::cout << std::endl;
-    //}
-
+    
     if(host_normalisation[parameters] <= 0)
         GooFit::abort(__FILE__, __LINE__, getName() + " non-positive normalisation", this);
 
@@ -298,13 +282,6 @@ __host__ double GooPdf::calculateNLL() const {
     if(0 == ret)
         GooFit::abort(__FILE__, __LINE__, getName() + " zero NLL", this);
 
-    // if (cpuDebug & 1) std::cout << "Full NLL " << host_callnumber << " : " << 2*ret << std::endl;
-    // setDebugMask(0);
-
-    // if ((cpuDebug & 1) && (host_callnumber >= 1)) GooFit::abort(__FILE__, __LINE__, getName() + " debug abort",
-    // this);
-    // if factor 2, UP must be 1
-    // return 2*ret 
     return  ret;
 }
 

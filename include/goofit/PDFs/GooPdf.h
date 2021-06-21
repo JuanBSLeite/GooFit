@@ -63,7 +63,7 @@ class GooPdf : public PdfBase {
     /// you were fitting to, but at any rate you don't get the probability-weighted integral over
     /// the other observables.
     __host__ std::vector<fptype> evaluateAtPoints(Observable var);
-
+    
     /// A normalize function. This fills in the host_normalize
     __host__ fptype normalize() const override;
 

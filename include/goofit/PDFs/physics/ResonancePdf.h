@@ -16,17 +16,6 @@ __device__ fptype Momentum( const fptype &m,
                             const fptype &m2 
                            );
 
-//for a0_f0 mixing
-__device__ fptype kallenFunction( const fptype &m,
-    const fptype &m1,
-    const fptype &m2
-    );
-
-//for a0_f0 mixing
-__device__ fptype rhoBC( const fptype &m,
-    const fptype &m1,
-    const fptype &m2
-    );
 
 __device__ fptype BWFactors(const fptype &q,
                             const fptype &q0, 
@@ -52,15 +41,15 @@ __device__ fptype f(const fptype &m, const fptype &m0,const fptype &width , cons
 
 
 
-__device__ fptype spinFactor(unsigned int spin,
-                             fptype motherMass,
-                             fptype daug1Mass,
-                             fptype daug2Mass,
-                             fptype daug3Mass,
-                             fptype m12,
-                             fptype m13,
-                             fptype m23,
-                             unsigned int cyclic_index);
+__device__ fptype spinFactor(unsigned int const &spin,
+                             const fptype &motherMass,
+                             const fptype &daug1Mass,
+                             const fptype &daug2Mass,
+                             const fptype &daug3Mass,
+                             const fptype &m12,
+                             const fptype &m13,
+                             const fptype &m23,
+                             const unsigned int &cyclic_index);
 
 class ResonancePdf : public GooPdf {
     friend class TddpPdf;
@@ -69,9 +58,7 @@ class ResonancePdf : public GooPdf {
 
   public:
     ~ResonancePdf() override = default;
-
     __host__ virtual void recalculateCache() const {}
-
     __host__ Variable get_amp_real() const { return amp_real; }
     __host__ Variable get_amp_img() const { return amp_imag; }
 
@@ -83,16 +70,17 @@ class ResonancePdf : public GooPdf {
         , amp_imag(ai) {
         // Dummy index for constants - won't use it, but calling
         // functions can't know that and will call setConstantIndex anyway.
-        pindices.push_back(0);
+        pindices.reserve(1000);
+        pindices.emplace_back(0);
+	
+	host_constants.reserve(1000);
     }
 
     void setConstantIndex(unsigned int idx) { host_indices[parameters + 1] = idx; }
 
     Variable amp_real;
     Variable amp_imag;
-
     std::vector<unsigned int> pindices;
-
     std::vector<fptype> host_constants;
 };
 
@@ -117,7 +105,7 @@ class POLE : public ResonancePdf {
     POLE(std::string name,
         Variable ar,
         Variable ai,
-Variable real,
+	Variable real,
         Variable img,
         unsigned int sp,
         unsigned int cyc,
@@ -166,23 +154,6 @@ class FLATTE : public ResonancePdf {
            unsigned int cyc,
            bool symmDP);
     ~FLATTE() override = default;
-};
-
-/// a0_f0_mixing
-class f0_MIXING : public ResonancePdf {
-  public:
-    f0_MIXING(std::string name,
-           Variable ar,
-           Variable ai,
-           Variable g1, //ga_kk coupling in particle basis
-           Variable g2, //gf_kk coupling in particle basis
-           Variable g3, //ga_eta_pi coupling in particle basis
-           Variable g4, //gf_pi_pi coupling in particle basis
-           Variable a0Mass,
-           Variable f0Mass,
-           unsigned int cyc,
-           bool symmDP);
-    ~f0_MIXING() override = default;
 };
 
 
@@ -242,17 +213,6 @@ class PelaezPdf : public ResonancePdf {
   public:
    PelaezPdf(std::string name, Variable ar, Variable ai);
     ~PelaezPdf() override = default;
-};
-
-class HanhartPWave : public ResonancePdf {
-  public:
-   HanhartPWave(std::string name, Variable ar, Variable ai,
-                Variable e1 ,
-                Variable mag,
-                Variable phase,
-                unsigned int cyc,
-                bool symmDP = false);
-    ~HanhartPWave() override = default;
 };
 
 
