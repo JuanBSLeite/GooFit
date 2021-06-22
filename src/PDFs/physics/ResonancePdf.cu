@@ -202,10 +202,10 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
         fptype q0 = Momentum(resmass,m1,m2);
         fptype BWFactors_Res = BWFactors(q,q0,spin,c_meson_radius);
 
-        //fptype qD = Momentum(c_motherMass,m,m3);
-        //fptype qD0 = Momentum(c_motherMass,resmass,m3);
-	fptype qD = MomentumParent(c_motherMass,m3,m);
-        fptype qD0 = MomentumParent(c_motherMass,m3,resmass);
+        fptype qD = Momentum(c_motherMass,m,m3);
+        fptype qD0 = Momentum(c_motherMass,resmass,m3);
+	//fptype qD = MomentumParent(c_motherMass,m3,m);
+        //fptype qD0 = MomentumParent(c_motherMass,m3,resmass);
         fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
 
         fptype gamma = Gamma(m,resmass,reswidth,q,q0,BWFactors_Res,spin);
@@ -325,10 +325,10 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
         fptype q0 = Momentum(resmass,m1,m2);
         fptype BWFactors_Res = BWFactors(q,q0,spin,c_meson_radius);
 
-        //fptype qD = Momentum(c_motherMass,m,m3);
-        //fptype qD0 = Momentum(c_motherMass,resmass,m3);
-	fptype qD = MomentumParent(c_motherMass,m3,m);
-        fptype qD0 = MomentumParent(c_motherMass,m3,resmass);
+        fptype qD = Momentum(c_motherMass,m,m3);
+        fptype qD0 = Momentum(c_motherMass,resmass,m3);
+	//fptype qD = MomentumParent(c_motherMass,m3,m);
+        //fptype qD0 = MomentumParent(c_motherMass,m3,resmass);
         fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
 
         fptype gamma = Gamma(m,resmass,reswidth,q,q0,BWFactors_Res,spin);

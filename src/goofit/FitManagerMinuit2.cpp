@@ -165,8 +165,8 @@ std::vector <std::vector<double>> FitManagerMinuit2::printParams(std::string pat
 		vec_phi.push_back(phi);
 		vec_mag_err.push_back(mag_err);
 		vec_phi_err.push_back(phi_err);
-		std::cout << "coefficient Res #" << (i+2)/2 << ":  " << mag << " +- " << mag_err << "       " << phi << " +- " << phi_err << std::endl;
-		wt << "coefficient Res #" << (i+2)/2 << ":  " << mag << " +- " << mag_err << "       " << phi << " +- " << phi_err << std::endl;
+		std::cout << "Res_" << (i+2)/2 << "\t" << mag << "\t" << mag_err << "\t" << phi << "\t" << phi_err << std::endl;
+		wt << "Res_" << (i+2)/2 << "\t" << mag << "\t" << mag_err << "\t" << phi << "\t" << phi_err << std::endl;
 	}
 
 	std::vector <std::vector<double>> ret; ret.clear();
