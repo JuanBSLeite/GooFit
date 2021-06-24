@@ -510,6 +510,7 @@ namespace GooFit {
 		// These complex numbers will not be squared when they
 		// go into the integrals. They've been squared already,
 		// as it were.
+	
 		ret *= eff;
 		// printf("ret %f %f %f \n", ret.real(), ret.imag(), eff );
 		return ret;

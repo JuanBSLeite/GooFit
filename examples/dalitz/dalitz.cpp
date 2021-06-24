@@ -134,7 +134,7 @@ DalitzPlotPdf *makeSignalPdf(Observable m12, Observable m13, EventNumber eventNu
     dtop0pp.meson_radius = 1.5;
 
     ResonancePdf *rhop = new Resonances::RBW(
-        "rhop", Variable("rhop_amp_real", 1), Variable("rhop_amp_imag", 0), fixedRhoMass, fixedRhoWidth, 1, PAIR_12);
+        "rhop", Variable("rhop_amp_real", 1), Variable("rhop_amp_imag", 0), fixedRhoMass, fixedRhoWidth, 1, PAIR_12,true);
 
     bool fixAmps = false; // Takes ~400x longer
 
@@ -145,7 +145,7 @@ DalitzPlotPdf *makeSignalPdf(Observable m12, Observable m13, EventNumber eventNu
         fixedRhoMass,
         fixedRhoWidth,
         1,
-        PAIR_13);
+        PAIR_13,true); 
 
     ResonancePdf *rho0 = new Resonances::RBW(
         "rho0",
@@ -154,7 +154,7 @@ DalitzPlotPdf *makeSignalPdf(Observable m12, Observable m13, EventNumber eventNu
         fixedRhoMass,
         fixedRhoWidth,
         1,
-        PAIR_23);
+        PAIR_23,true);
 
     Variable sharedMass("rhop_1450_mass", 1.465, 0.01, 1.0, 2.0);
     Variable shareWidth("rhop_1450_width", 0.400, 0.01, 0.01, 5.0);
@@ -345,6 +345,11 @@ int runToyFit(DalitzPlotPdf *signal, UnbinnedDataSet *data) {
 
     foo.SaveAs("dalitzpdf.png");
 
+	 auto ff = signal->fit_fractions(1000);
+	 for(int i=0; i<ff.size(); i++){
+			std::cout << std::setprecision(4) << ff[i][i] << '\t';
+	 }
+
     return datapdf;
 }
 
@@ -388,7 +393,9 @@ int main(int argc, char **argv) {
     }
 
     try {
-        return runToyFit(signal, &data);
+         auto fit = runToyFit(signal, &data);
+	return fit;
+
     } catch(const std::runtime_error &e) {
         std::cerr << e.what() << std::endl;
         return 7;

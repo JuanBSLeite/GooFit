@@ -23,6 +23,25 @@ __device__ fptype hanhart_s_pipi[MAXNKNOBS];
 __device__ fptype hanhart_coefs_pipi[2*MAXNKNOBS];
 __device__ fptype hanhart_derivatives_pipi[2*MAXNKNOBS];
 
+
+//We note here that the
+//relativistic Breit–Wigner lineshape can also describe so-called virtual contributions, from
+//resonances with masses outside the kinematically accessible region of the Dalitz plot, with
+//one modification: in the calculation of the momenta, the mass m0 is set to a value m0eff
+//within the kinematically allowed range. This is accomplished with the ad-hoc formula
+//arXiv:1711.09854v4-Laura++: a Dalitz plot fitter
+__device__ fptype effMassCalculator(const fptype &resMass,const fptype &m_min,const fptype &m_max){
+
+	auto m0 = resMass; 
+
+	if(m0<m_min || m0>m_max)
+		m0= m_min + 0.5*(m_max-m_min)*(1. + tanh((resMass - 0.5*(m_min+m_max))/(m_max-m_min)) );
+
+	return m0;
+}
+
+
+
 //from Grace Young - New Package for RooFit Supporting Dalitz Analysis
 //Resonance frame
 __device__ fptype Momentum( const fptype &m,
@@ -182,28 +201,34 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
     auto c_daug3Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 3]);
     auto c_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
 
-    auto resmass            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
+    auto m0          = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
     auto reswidth           = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
     auto spin         = RO_CACHE(indices[4]);
     auto cyclic_index = RO_CACHE(indices[5]);
+    auto ParentBachelorRestFrame = RO_CACHE(indices[6]);
 
     fpcomplex result(0., 0.);
 
+    if(m0<0.)
+	return result;
+
 #pragma unroll
     for(int i = 0; i < I; i++) {
+	
         fptype s    = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
         fptype m = sqrt(s);
         fptype m1 = PAIR_23 == cyclic_index ? c_daug2Mass : c_daug1Mass;
         fptype m2 = PAIR_12 == cyclic_index ? c_daug2Mass : c_daug3Mass;
         fptype m3 = PAIR_23 == cyclic_index ? c_daug1Mass : (PAIR_13 == cyclic_index?c_daug2Mass:c_daug3Mass);
 
+    	auto resmass = effMassCalculator(m0,m1+m2,c_motherMass-m3);  
         fptype resmass2 = POW2(resmass);
         fptype q  = Momentum(m,m1,m2);
         fptype q0 = Momentum(resmass,m1,m2);
         fptype BWFactors_Res = BWFactors(q,q0,spin,c_meson_radius);
 
-        fptype qD = Momentum(c_motherMass,m,m3);
-        fptype qD0 = Momentum(c_motherMass,resmass,m3);
+        fptype qD = ParentBachelorRestFrame? MomentumParent(c_motherMass,m3,m) : Momentum(c_motherMass,m,m3);
+        fptype qD0 = ParentBachelorRestFrame? MomentumParent(c_motherMass,m3,resmass): Momentum(c_motherMass,resmass,m3);
 	//fptype qD = MomentumParent(c_motherMass,m3,m);
         //fptype qD0 = MomentumParent(c_motherMass,m3,resmass);
         fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
@@ -229,7 +254,7 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
         }
     }
 
-    return result;//reswidth>0 ? result : fpcomplex(0.,0.);
+    return result;
 }
 
 //from Laura++
@@ -304,13 +329,16 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
     fptype c_daug3Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 3]);
     fptype c_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
 
-    fptype resmass            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
+    fptype m0            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
     fptype reswidth           = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
     unsigned int spin         = RO_CACHE(indices[4]);
     unsigned int cyclic_index = RO_CACHE(indices[5]);
+    auto ParentBachelorRestFrame = RO_CACHE(indices[6]);
 
     fpcomplex result(0., 0.);
-    
+
+    if(m0<0.)
+    	return result;
 
     #pragma unroll
     for(int i = 0; i < I; i++) {
@@ -319,16 +347,15 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
         fptype m1 = PAIR_23 == cyclic_index ? c_daug2Mass : c_daug1Mass;
         fptype m2 = PAIR_12 == cyclic_index ? c_daug2Mass : c_daug3Mass;
         fptype m3 = PAIR_23 == cyclic_index ? c_daug1Mass : (PAIR_13 == cyclic_index?c_daug2Mass:c_daug3Mass);
-       
+ 
+    	auto resmass = effMassCalculator(m0,m1+m2,c_motherMass-m3);  
         fptype resmass2 = POW2(resmass);
         fptype q  = Momentum(m,m1,m2);
         fptype q0 = Momentum(resmass,m1,m2);
         fptype BWFactors_Res = BWFactors(q,q0,spin,c_meson_radius);
 
-        fptype qD = Momentum(c_motherMass,m,m3);
-        fptype qD0 = Momentum(c_motherMass,resmass,m3);
-	//fptype qD = MomentumParent(c_motherMass,m3,m);
-        //fptype qD0 = MomentumParent(c_motherMass,m3,resmass);
+        fptype qD = ParentBachelorRestFrame? MomentumParent(c_motherMass,m3,m) : Momentum(c_motherMass,m,m3);
+        fptype qD0 = ParentBachelorRestFrame? MomentumParent(c_motherMass,m3,resmass): Momentum(c_motherMass,resmass,m3);
         fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
 
         fptype gamma = Gamma(m,resmass,reswidth,q,q0,BWFactors_Res,spin);
@@ -826,13 +853,14 @@ RBW::RBW(std::string name,
          Variable width,
          unsigned int sp,
          unsigned int cyc,
-         bool symmDP)
+         bool symmDP,
+	 bool ParentBachelorRestFrame)
     : ResonancePdf(name, ar, ai) {
     pindices.emplace_back(registerParameter(mass));
     pindices.emplace_back(registerParameter(width));
     pindices.emplace_back(sp);
     pindices.emplace_back(cyc);
-    pindices.emplace_back(symmDP);
+    pindices.emplace_back(ParentBachelorRestFrame);   
 
     if(symmDP) {
         GET_FUNCTION_ADDR(ptr_to_RBW_SYM);
@@ -868,13 +896,13 @@ pindices.emplace_back(registerParameter(real));
     initialize(pindices);
 }
 
-GS::GS(std::string name, Variable ar, Variable ai, Variable mass, Variable width, unsigned int sp, unsigned int cyc,bool symmDP)
+GS::GS(std::string name, Variable ar, Variable ai, Variable mass, Variable width, unsigned int sp, unsigned int cyc,bool symmDP, bool ParentBachelorRestFrame)
     : ResonancePdf(name, ar, ai) {
     pindices.emplace_back(registerParameter(mass));
     pindices.emplace_back(registerParameter(width));
     pindices.emplace_back(sp);
     pindices.emplace_back(cyc);
-    pindices.emplace_back(symmDP);
+    pindices.emplace_back(ParentBachelorRestFrame);
     
     if(symmDP) {
         GET_FUNCTION_ADDR(ptr_to_GOUSAK_SYM);
