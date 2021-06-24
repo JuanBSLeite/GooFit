@@ -227,14 +227,19 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
         fptype q0 = Momentum(resmass,m1,m2);
         fptype BWFactors_Res = BWFactors(q,q0,spin,c_meson_radius);
 
-        fptype qD = ParentBachelorRestFrame? MomentumParent(c_motherMass,m3,m) : Momentum(c_motherMass,m,m3);
-        fptype qD0 = ParentBachelorRestFrame? MomentumParent(c_motherMass,m3,resmass): Momentum(c_motherMass,resmass,m3);
-	//fptype qD = MomentumParent(c_motherMass,m3,m);
-        //fptype qD0 = MomentumParent(c_motherMass,m3,resmass);
-        fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
-
+        fptype qD = 1.;
+        fptype qD0 = 1.;
+    	
+	if(!ParentBachelorRestFrame){
+                qD = Momentum(c_motherMass,m,m3);
+                qD0 = Momentum(c_motherMass,resmass,m3);
+        }else{
+                qD = MomentumParent(c_motherMass,m3,m);
+                qD0 = MomentumParent(c_motherMass,m3,resmass);
+        }
+        
+	fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
         fptype gamma = Gamma(m,resmass,reswidth,q,q0,BWFactors_Res,spin);
-
 
         // RBW evaluation
         fptype A = (resmass2 - s);
@@ -354,9 +359,18 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
         fptype q0 = Momentum(resmass,m1,m2);
         fptype BWFactors_Res = BWFactors(q,q0,spin,c_meson_radius);
 
-        fptype qD = ParentBachelorRestFrame? MomentumParent(c_motherMass,m3,m) : Momentum(c_motherMass,m,m3);
-        fptype qD0 = ParentBachelorRestFrame? MomentumParent(c_motherMass,m3,resmass): Momentum(c_motherMass,resmass,m3);
-        fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
+        fptype qD = 1.;
+        fptype qD0 = 1.;
+    	
+	if(!ParentBachelorRestFrame){
+                qD = Momentum(c_motherMass,m,m3);
+                qD0 = Momentum(c_motherMass,resmass,m3);
+        }else{
+                qD = MomentumParent(c_motherMass,m3,m);
+                qD0 = MomentumParent(c_motherMass,m3,resmass);
+        }
+        
+	fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
 
         fptype gamma = Gamma(m,resmass,reswidth,q,q0,BWFactors_Res,spin);
         
