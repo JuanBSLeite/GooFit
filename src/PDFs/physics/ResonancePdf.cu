@@ -209,7 +209,7 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
 
     fpcomplex result(0., 0.);
 
-    if(m0<0.)
+    if(reswidth<0.)
 	return result;
 
 #pragma unroll
@@ -342,7 +342,7 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
 
     fpcomplex result(0., 0.);
 
-    if(m0<0.)
+    if(reswidth<0.)
     	return result;
 
     #pragma unroll
