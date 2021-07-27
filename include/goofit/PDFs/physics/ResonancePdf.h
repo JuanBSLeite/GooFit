@@ -183,35 +183,41 @@ namespace GooFit {
 		};
 
 		/// Cubic spline constructor
-		class Spline : public ResonancePdf {
+		class CubicSpline : public ResonancePdf {
 			public:
-				Spline(std::string name,
+				CubicSpline(std::string name,
 						Variable ar,
 						Variable ai,
 						std::vector<fptype> &HH_bin_limits,
 						std::vector<Variable> &pwa_coefs_reals,
 						std::vector<Variable> &pwa_coefs_imags,
 						unsigned int cyc,
-						bool symmDP = false);
-				~Spline() override = default;
+						bool symmDP = false,
+						bool varIsPolar = false);
+				~CubicSpline() override = default;
 
 
 		};
 
-		class SplinePolar : public ResonancePdf {
+
+
+		/// Linear spline constructor
+		class LinearSpline : public ResonancePdf {
 			public:
-				SplinePolar(std::string name,
+				LinearSpline(std::string name,
 						Variable ar,
 						Variable ai,
 						std::vector<fptype> &HH_bin_limits,
 						std::vector<Variable> &pwa_coefs_reals,
 						std::vector<Variable> &pwa_coefs_imags,
 						unsigned int cyc,
-						bool symmDP = false);
-				~SplinePolar() override = default;
+						bool symmDP = false,
+						bool varIsPolar = false);
+				~LinearSpline() override = default;
 
 
 		};
+
 
 		class BoseEinstein : public ResonancePdf {
 			public:
