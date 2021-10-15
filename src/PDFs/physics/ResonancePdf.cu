@@ -24,24 +24,6 @@ __device__ fptype hanhart_coefs_pipi[2*MAXNKNOBS];
 __device__ fptype hanhart_derivatives_pipi[2*MAXNKNOBS];
 
 
-//We note here that the
-//relativistic Breit–Wigner lineshape can also describe so-called virtual contributions, from
-//resonances with masses outside the kinematically accessible region of the Dalitz plot, with
-//one modification: in the calculation of the momenta, the mass m0 is set to a value m0eff
-//within the kinematically allowed range. This is accomplished with the ad-hoc formula
-//arXiv:1711.09854v4-Laura++: a Dalitz plot fitter
-__device__ fptype effMassCalculator(const fptype &resMass,const fptype &m_min,const fptype &m_max){
-
-	auto m0 = resMass; 
-
-	if(m0<m_min || m0>m_max)
-		m0= m_min + 0.5*(m_max-m_min)*(1. + tanh((resMass - 0.5*(m_min+m_max))/(m_max-m_min)) );
-
-	return m0;
-}
-
-
-
 //from Grace Young - New Package for RooFit Supporting Dalitz Analysis
 //Resonance frame
 __device__ fptype Momentum( const fptype &m,
@@ -221,7 +203,7 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
         fptype m2 = PAIR_12 == cyclic_index ? c_daug2Mass : c_daug3Mass;
         fptype m3 = PAIR_23 == cyclic_index ? c_daug1Mass : (PAIR_13 == cyclic_index?c_daug2Mass:c_daug3Mass);
 
-    	auto resmass = effMassCalculator(m0,m1+m2,c_motherMass-m3);  
+    	auto resmass = m0;  
         fptype resmass2 = POW2(resmass);
         fptype q  = Momentum(m,m1,m2);
         fptype q0 = Momentum(resmass,m1,m2);
@@ -353,7 +335,7 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
         fptype m2 = PAIR_12 == cyclic_index ? c_daug2Mass : c_daug3Mass;
         fptype m3 = PAIR_23 == cyclic_index ? c_daug1Mass : (PAIR_13 == cyclic_index?c_daug2Mass:c_daug3Mass);
  
-    	auto resmass = effMassCalculator(m0,m1+m2,c_motherMass-m3);  
+    	auto resmass = m0;  
         fptype resmass2 = POW2(resmass);
         fptype q  = Momentum(m,m1,m2);
         fptype q0 = Momentum(resmass,m1,m2);

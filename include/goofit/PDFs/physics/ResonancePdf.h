@@ -11,8 +11,7 @@ namespace GooFit {
 
 	typedef fpcomplex (*resonance_function_ptr)(fptype, fptype, fptype, unsigned int *);
 
-	__device__ fptype effMassCalculator(const fptype &resMass,const fptype &m_min,const fptype &m_max);
-
+	
 	__device__ fptype MomentumParent( const fptype &mP,
 			const fptype &mBach,
 			const fptype &mRes
