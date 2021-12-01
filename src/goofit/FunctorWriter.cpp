@@ -3,6 +3,7 @@
 #include <goofit/PdfBase.h>
 #include <goofit/Variable.h>
 #include <map>
+#include <iomanip> 
 
 namespace GooFit {
 
