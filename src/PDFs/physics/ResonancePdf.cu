@@ -2,6 +2,7 @@
 #include <goofit/PDFs/physics/DalitzPlotHelpers.h>
 #include <goofit/PDFs/physics/ResonancePdf.h>
 
+
 #include <utility>
 #include <iterator>
 #include <fstream>
@@ -10,6 +11,7 @@
 #include <Eigen/LU>
 
 #include <goofit/detail/Macros.h>
+
 
 
 //s = Mass Squared
@@ -821,6 +823,196 @@ __device__ fpcomplex Pelaez(fptype m12, fptype m13, fptype m23,unsigned int *ind
 
 }
 
+//from ROOFIT
+template <int I>
+__device__ fpcomplex voigtian(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
+    // indices[1] is unused constant index, for consistency with other function types.
+    auto c_motherMass   = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 0]);
+    auto c_daug1Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 1]);
+    auto c_daug2Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 2]);
+    auto c_daug3Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 3]);
+    auto c_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
+
+    fptype mass            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
+    fptype sigma           = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
+    fptype width           = RO_CACHE(cudaArray[RO_CACHE(indices[4])]);
+    unsigned int spin = indices[5];
+    unsigned int cyclic_index = indices[6];
+    unsigned int ParentBachelorRestFrame  = indices[7];
+
+    fpcomplex result(0., 0.);
+
+    width = (width>0) ? width: -width;
+    sigma = (sigma>0) ? sigma: -sigma;
+
+   // printf("sigma = %f  e width = %f \n ",sigma,width);
+
+    auto coef = -0.5/(sigma*sigma);
+
+    #pragma unroll
+        for(int i = 0; i < I; i++) {
+
+            fptype s    = (PAIR_12 == cyclic_index ? m12 : (PAIR_13 == cyclic_index ? m13 : m23));
+            fptype m = sqrt(s);
+            fptype m1 = PAIR_23 == cyclic_index ? c_daug2Mass : c_daug1Mass;
+            fptype m2 = PAIR_12 == cyclic_index ? c_daug2Mass : c_daug3Mass;
+            fptype m3 = PAIR_23 == cyclic_index ? c_daug1Mass : (PAIR_13 == cyclic_index?c_daug2Mass:c_daug3Mass);
+  
+            auto resmass = mass;
+            fptype resmass2 = POW2(resmass);
+            fptype q  = Momentum(m,m1,m2);
+            fptype q0 = Momentum(resmass,m1,m2);
+            fptype BWFactors_Res = BWFactors(q,q0,spin,c_meson_radius);
+
+            fptype qD = 1.;
+            fptype qD0 = 1.;
+            
+            if(!ParentBachelorRestFrame){
+                    qD = Momentum(c_motherMass,m,m3);
+                    qD0 = Momentum(c_motherMass,resmass,m3);
+            }else{
+                    qD = MomentumParent(c_motherMass,m3,m);
+                    qD0 = MomentumParent(c_motherMass,m3,resmass);
+            }
+        
+	        fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
+            fptype gamma = Gamma(m,resmass,width,q,q0,BWFactors_Res,spin);
+
+            // RBW evaluation
+            fptype A = (resmass2 - s);
+            fptype B = resmass*gamma;
+            fptype C = 1.0 / (POW2(A) + POW2(B));
+
+            fpcomplex RBW(A * C, B * C);
+            RBW *= BWFactors_Res*BWFactors_D;
+            RBW *= spinFactor(spin, c_motherMass, c_daug1Mass, c_daug2Mass, c_daug3Mass, m12, m13, m23, cyclic_index);
+
+            // return constant for zero width and sigma
+            if (sigma==0. && width==0.) return fpcomplex(1.,0.);
+
+             //return Breit-Wigner for zero sigma
+            if (sigma==0.){
+                result += RBW;
+            }
+
+            // Gauss for zero width
+            if (width==0.){
+                fpcomplex Gauss(exp(coef*POW2(m - resmass)),0.);
+                Gauss *= BWFactors_Res*BWFactors_D;
+                Gauss *= spinFactor(spin, c_motherMass, c_daug1Mass, c_daug2Mass, c_daug3Mass, m12, m13, m23, cyclic_index);
+                result += Gauss;
+            }
+
+            // actual Voigtian for non-trivial width and sigma
+            if(sigma!=0. && width!=0.){
+                auto c = 1./(sqrt(2.)*sigma);
+                auto a = 0.5*c*width;
+                auto u = c*(m - resmass);
+                fpcomplex z(u,a) ;
+                fpcomplex v = device_Faddeeva(z);
+                #define _rsqrtPi 0.5641895835477563
+                fpcomplex voigtian = c*_rsqrtPi*v;
+                voigtian *= BWFactors_Res*BWFactors_D;
+                voigtian *= spinFactor(spin, c_motherMass, c_daug1Mass, c_daug2Mass, c_daug3Mass, m12, m13, m23, cyclic_index);
+                result += voigtian;
+                
+            }
+            
+            if(I != 0) {
+                fptype swpmass = m12;
+                m12            = m13;
+                m13            = swpmass;
+            }
+
+        }
+  
+    return result;
+}
+
+
+//From pelaez
+__device__ fpcomplex pelaez_pipi2kk(fptype m12, fptype m13, fptype m23, unsigned int *indices) {
+    fpcomplex ret(0, 0);
+    unsigned int cyclic_index        = indices[2];
+    unsigned int doSwap              = indices[3];
+    const unsigned int nKnobs                   = indices[4];
+    unsigned int idx                 = 5; // Next index
+    unsigned int i                   = 0;
+    const unsigned int pwa_coefs_idx = idx;
+    idx += 2 * nKnobs;
+    const fptype *mKKlimits = &(functorConstants[indices[idx]]);
+    fptype mAB = m12, mAC = m13;
+    switch(cyclic_index) {
+    case PAIR_13:
+        mAB = m13;
+        mAC = m12;
+        break;
+    case PAIR_23:
+        mAB = m23;
+        mAC = m12;
+        break;
+    }
+
+    int khiAB = 0, khiAC = 0;
+    fptype dmKK, aa, bb, aa3, bb3;
+    
+    unsigned int timestorun = 1 + doSwap;
+    while(khiAB < nKnobs) {
+        if(mAB < mKKlimits[khiAB])
+            break;
+        khiAB++;
+    }
+
+    if(khiAB <= 0 || khiAB == nKnobs)
+        timestorun = 0;
+    while(khiAC < nKnobs) {
+        if(mAC < mKKlimits[khiAC])
+            break;
+        khiAC++;
+    }
+
+    if(khiAC <= 0 || khiAC == nKnobs)
+        timestorun = 0;
+
+    const double lowerTsh = 1.01;
+    const double UpperTsh = 1.95;
+   
+    for(i = 0; i < timestorun; i++) {
+        unsigned int kloAB                = khiAB - 1; 
+        unsigned int twokloAB             = kloAB + kloAB;
+        unsigned int twokhiAB             = khiAB + khiAB;
+        fptype pwa_coefs_real_kloAB       = cudaArray[indices[pwa_coefs_idx + twokloAB]];
+        fptype pwa_coefs_real_khiAB       = cudaArray[indices[pwa_coefs_idx + twokhiAB]];
+        fptype pwa_coefs_imag_kloAB       = cudaArray[indices[pwa_coefs_idx + twokloAB + 1]];
+        fptype pwa_coefs_imag_khiAB       = cudaArray[indices[pwa_coefs_idx + twokhiAB + 1]];
+        
+        fptype pwa_coefs_prime_real_kloAB = cDeriatives[twokloAB];
+        fptype pwa_coefs_prime_real_khiAB = cDeriatives[twokhiAB];
+        fptype pwa_coefs_prime_imag_kloAB = cDeriatives[twokloAB + 1];
+        fptype pwa_coefs_prime_imag_khiAB = cDeriatives[twokhiAB + 1];
+       
+        dmKK = mKKlimits[khiAB] - mKKlimits[kloAB];
+        aa   = (mKKlimits[khiAB] - mAB) / dmKK;
+        bb   = 1 - aa;
+        aa3  = aa * aa * aa;
+        bb3  = bb * bb * bb;
+
+        if(mAB>lowerTsh && mAB<UpperTsh){
+            ret.real(ret.real() + aa * pwa_coefs_real_kloAB + bb * pwa_coefs_real_khiAB + ((aa3 - aa) * pwa_coefs_prime_real_kloAB + (bb3 - bb) * pwa_coefs_prime_real_khiAB) * (dmKK * dmKK)/ 6.0);
+            ret.imag(ret.imag() + aa * pwa_coefs_imag_kloAB + bb * pwa_coefs_imag_khiAB + ((aa3 - aa) * pwa_coefs_prime_imag_kloAB + (bb3 - bb) * pwa_coefs_prime_imag_khiAB) * (dmKK * dmKK)/ 6.0);
+        }else{
+            ret.real(0.);
+            ret.imag(0.);
+            i++;
+        }
+        
+        khiAB = khiAC;
+        mAB   = mAC;
+    }
+    return ret;
+}
+
+
 
 __device__ resonance_function_ptr ptr_to_RBW      = plainBW<1>;
 __device__ resonance_function_ptr ptr_to_RBW_SYM  = plainBW<2>;
@@ -838,6 +1030,11 @@ __device__ resonance_function_ptr ptr_to_SPLINE   = cubicspline;
 __device__ resonance_function_ptr ptr_to_SPLINE_POLAR   = cubicsplinePolar;
 __device__ resonance_function_ptr ptr_to_BoseEinstein = BE;
 __device__ resonance_function_ptr ptr_to_Pelaez = Pelaez;
+__device__ resonance_function_ptr ptr_to_VoigtianAmp      = voigtian<1>;
+__device__ resonance_function_ptr ptr_to_VoigtianAmp_SYM  = voigtian<2>;
+
+__device__ resonance_function_ptr ptr_to_PELAEZ_PIPI2KKK = pelaez_pipi2kk;
+
 
 
 namespace Resonances {
@@ -1096,6 +1293,77 @@ PelaezPdf::PelaezPdf(std::string name,Variable ar, Variable ai)
     initialize(pindices);
     
 }
+
+VoigtianAmp::VoigtianAmp(std::string name,
+         Variable ar,
+         Variable ai,
+         Variable mean,
+         Variable sigma,
+         Variable width,
+         unsigned int sp,
+         unsigned int cyc,
+         bool symmDP,
+	 bool ParentBachelorRestFrame)
+    : ResonancePdf(name, ar, ai) {
+    pindices.emplace_back(registerParameter(mean));
+    pindices.emplace_back(registerParameter(sigma));
+    pindices.emplace_back(registerParameter(width));
+    pindices.emplace_back(sp);
+    pindices.emplace_back(cyc);
+    pindices.emplace_back(ParentBachelorRestFrame);   
+
+    if(symmDP) {
+        GET_FUNCTION_ADDR(ptr_to_VoigtianAmp_SYM);
+    } else {
+        GET_FUNCTION_ADDR(ptr_to_VoigtianAmp);
+    }
+
+    initialize(pindices);
+}
+
+PelaezPiPi2KK::PelaezPiPi2KK(std::string name,
+               Variable ar,
+               Variable ai,
+               std::vector<fptype> &HH_bin_limits,
+               std::vector<Variable> &pwa_coefs_reals,
+               std::vector<Variable> &pwa_coefs_imags,
+               unsigned int cyc,
+               bool symmDP)
+    : ResonancePdf(name, ar, ai) {
+    const unsigned int nKnobs = HH_bin_limits.size();
+    host_constants.resize(nKnobs);
+    std::vector<fpcomplex> y(nKnobs);
+    std::vector<unsigned int> pindices;
+    pindices.reserve(4+2*nKnobs);
+    pindices.emplace_back(0);
+    pindices.emplace_back(cyc);
+    pindices.emplace_back((unsigned int)symmDP);
+    pindices.emplace_back(nKnobs);
+
+    for(int i = 0; i < pwa_coefs_reals.size(); i++) {
+        host_constants[i] = HH_bin_limits[i];
+        pindices.emplace_back(registerParameter(pwa_coefs_reals[i]));
+        pindices.emplace_back(registerParameter(pwa_coefs_imags[i]));
+        y[i].real(pwa_coefs_reals[i].getValue());
+        y[i].imag(pwa_coefs_imags[i].getValue());
+    }
+    pindices.emplace_back(registerConstants(nKnobs));
+    std::vector<fptype> y2_flat = flatten(complex_derivative(host_constants, y));
+    MEMCPY_TO_SYMBOL(cDeriatives, y2_flat.data(), 2 * nKnobs * sizeof(fptype), 0, cudaMemcpyHostToDevice);
+    
+    MEMCPY_TO_SYMBOL(functorConstants,
+                     host_constants.data(),
+                     nKnobs * sizeof(fptype),
+                     cIndex * sizeof(fptype),
+                     cudaMemcpyHostToDevice);
+    
+    GET_FUNCTION_ADDR(pelaez_pipi2kk);
+
+    initialize(pindices);
+
+   
+}
+
 
 
 } // namespace Resonances

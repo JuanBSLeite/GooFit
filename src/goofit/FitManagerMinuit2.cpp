@@ -11,7 +11,7 @@
 #include <CLI/Timer.hpp>
 #include <goofit/PdfBase.h>
 
-#include <cuda_runtime.h>
+//#include <cuda_runtime.h>
 
 #include <fstream>
 

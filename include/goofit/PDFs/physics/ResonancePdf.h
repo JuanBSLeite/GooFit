@@ -4,6 +4,7 @@
 #include <goofit/detail/Complex.h>
 
 
+
 namespace GooFit {
 
 #define MAXNKNOBS 1000
@@ -198,6 +199,8 @@ namespace GooFit {
 
 		};
 
+
+
 		class SplinePolar : public ResonancePdf {
 			public:
 				SplinePolar(std::string name,
@@ -213,6 +216,12 @@ namespace GooFit {
 
 		};
 
+
+
+
+
+
+
 		class BoseEinstein : public ResonancePdf {
 			public:
 				BoseEinstein(std::string name, Variable ar, Variable ai, Variable coef , Variable delta );
@@ -225,6 +234,32 @@ namespace GooFit {
 				PelaezPdf(std::string name, Variable ar, Variable ai);
 				~PelaezPdf() override = default;
 		};
+
+
+		/// Voigtian constructor
+		class VoigtianAmp : public ResonancePdf {
+			public:
+				VoigtianAmp(std::string name, Variable ar, Variable ai, Variable mean, Variable sigma, Variable width,  unsigned int sp, unsigned int cyc, bool symDP = false, bool ParentBachelorRestFrame=false);
+				~VoigtianAmp() override = default;
+		};
+
+
+		/// Pelaez \pi\pi \to KK scattering amp
+		class PelaezPiPi2KK : public ResonancePdf {
+			public:
+				PelaezPiPi2KK(std::string name,
+						Variable ar,
+						Variable ai,
+						std::vector<fptype> &HH_bin_limits,
+						std::vector<Variable> &pwa_coefs_reals,
+						std::vector<Variable> &pwa_coefs_imags,
+						unsigned int cyc,
+						bool symmDP = false);
+				~PelaezPiPi2KK() override = default;
+
+
+		};
+
 
 
 	} // namespace Resonances
