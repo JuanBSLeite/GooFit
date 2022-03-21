@@ -1003,7 +1003,6 @@ __device__ fpcomplex pelaez_pipi2kk(fptype m12, fptype m13, fptype m23, unsigned
         }else{
             ret.real(0.);
             ret.imag(0.);
-            i++;
         }
         
         khiAB = khiAC;
