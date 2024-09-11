@@ -300,7 +300,7 @@ class DalitzPlotter {
             double currm13 = currData.getValue(m13, j);
 
             dalitz_pdf_hist.Fill(currm12, currm13, pdfValues[0][j]);
-            dalitz_pdf_hist.Fill(currm13, currm12, pdfValues[0][j]);
+            //dalitz_pdf_hist.Fill(currm13, currm12, pdfValues[0][j]);
             m12_pdf_hist.Fill(currm12, pdfValues[0][j]);
             m13_pdf_hist.Fill(currm13, pdfValues[0][j]);
             m23_pdf_hist.Fill( cpuGetM23(massSum,currm12, currm13) , pdfValues[0][j]);
@@ -323,7 +323,7 @@ class DalitzPlotter {
             m13_dat_hist.Fill(data_m13);
             m23_dat_hist.Fill(cpuGetM23(massSum,data_m12, data_m13));
             dalitz_dat_hist.Fill(data_m12, data_m13);
-            dalitz_dat_hist.Fill(data_m13, data_m12);
+            //dalitz_dat_hist.Fill(data_m13, data_m12);
             totalDat++;
         }
 

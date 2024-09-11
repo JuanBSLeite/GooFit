@@ -96,7 +96,7 @@ namespace GooFit {
 
 			auto mag = RO_CACHE(p[RO_CACHE(indices[paramIndex + 0])]);
 			auto  phase = RO_CACHE(p[RO_CACHE(indices[paramIndex + 1])]);
-			auto amp = fpcomplex(mag,phase);
+			auto amp = thrust::polar(mag,phase);
 			auto me = RO_CACHE(cResonances[i][evtNum]);
 			totalAmp += amp * me;
 		}
@@ -336,11 +336,11 @@ namespace GooFit {
 
 		for(unsigned int i = 0; i < decayInfo.resonances.size(); ++i) {
                         auto param_i = parameters + resonanceOffset_DP + resonanceSize * i;
-                        const fpcomplex amplitude_i(host_params[host_indices[param_i]], host_params[host_indices[param_i + 1]]);
+                        const auto amplitude_i = thrust::polar(host_params[host_indices[param_i]], host_params[host_indices[param_i + 1]]);
 
                         for(unsigned int j = 0; j < decayInfo.resonances.size(); ++j) {
                                 auto param_j = parameters + resonanceOffset_DP + resonanceSize * j;
-                                const fpcomplex amplitude_j(host_params[host_indices[param_j]], -host_params[host_indices[param_j + 1]]);
+                                const auto amplitude_j = thrust::polar(host_params[host_indices[param_j]], -host_params[host_indices[param_j + 1]]);
 
                                	sumIntegral += i==j ? amplitude_i * amplitude_j * (*(integrals[i][j])) : ( j<i ? 2.*amplitude_i * amplitude_j * (*(integrals[i][j])): fpcomplex(0.,0.));						
                         }
@@ -421,11 +421,11 @@ namespace GooFit {
 
 		for(unsigned int i = 0; i < nres; ++i) {
 			auto param_i = parameters + resonanceOffset_DP + resonanceSize * i;
-			const fpcomplex amplitude_i(host_params[host_indices[param_i]], host_params[host_indices[param_i + 1]]);
+			const auto amplitude_i = thrust::polar(host_params[host_indices[param_i]], host_params[host_indices[param_i + 1]]);
 
 			for(unsigned int j = 0; j < nres; ++j) {
 				auto param_j = parameters + resonanceOffset_DP + resonanceSize * j;
-				const fpcomplex amplitude_j(host_params[host_indices[param_j]], -host_params[host_indices[param_j + 1]]);
+				const  auto amplitude_j = thrust::polar(host_params[host_indices[param_j]], -host_params[host_indices[param_j + 1]]);
 				if(i==j){
 					const fpcomplex buffer = amplitude_i * amplitude_j * (*(integrals_ff[i][j]));
 					AmpIntegral[i][j] = buffer.real();
