@@ -1,31 +1,22 @@
 #include <goofit/Error.h>
 #include <goofit/Variable.h>
+#include <goofit/utilities/Uncertain.h>
 
 #include <algorithm>
 
 namespace GooFit {
 
-int max_index(const std::vector<Variable> &vars) {
-    if(vars.empty())
-        return -1;
-    const Variable &max_ind_ptr
-        = *std::max_element(std::begin(vars), std::end(vars), [](const Variable &a, const Variable &b) {
-              return a.getIndex() < b.getIndex();
-          });
-    return max_ind_ptr.getIndex();
+bool Indexable::isEqualNameValLimits(const Indexable &other) const {
+    return this->name == other.name && this->value.get() == other.value.get()
+           && this->lowerlimit.get() == other.lowerlimit.get() && this->upperlimit.get() == other.upperlimit.get();
 }
 
-int max_index(const std::vector<Observable> &vars) {
-    if(vars.empty())
-        return -1;
-    const Observable &max_ind_ptr
-        = *std::max_element(std::begin(vars), std::end(vars), [](const Observable &a, const Observable &b) {
-              return a.getIndex() < b.getIndex();
-          });
-    return max_ind_ptr.getIndex();
+bool Variable::isEqualNameValLimitsErrBlindFixed(const Variable &other) const {
+    return this->isEqualNameValLimits(other) && this->error.get() == other.error.get()
+           && this->blind.get() == other.blind.get() && this->fixed.get() == other.fixed.get();
 }
 
-int max_fitter_index(const std::vector<Variable> &vars) {
+auto max_fitter_index(const std::vector<Variable> &vars) -> int {
     const Variable max_ind_ptr
         = *std::max_element(std::begin(vars), std::end(vars), [](const Variable &a, const Variable &b) {
               return a.getFitterIndex() < b.getFitterIndex();
@@ -33,8 +24,11 @@ int max_fitter_index(const std::vector<Variable> &vars) {
     return max_ind_ptr.getFitterIndex();
 }
 
-std::ostream &operator<<(std::ostream &o, const GooFit::Variable &var) {
-    o << var.getName() << ": " << var.getValue() << " +/- " << var.getError();
+auto operator<<(std::ostream &o, const GooFit::Variable &var) -> std::ostream & {
+    o << var.getName() << ": ";
+
+    o << Uncertain(var.getValue(), var.getError());
+
     if(!var.IsFixed())
         o << " [" << var.getLowerLimit() << ", " << var.getUpperLimit() << "]";
     if(var.getIndex() >= 0)
@@ -47,7 +41,7 @@ std::ostream &operator<<(std::ostream &o, const GooFit::Variable &var) {
     return o;
 }
 
-std::ostream &operator<<(std::ostream &o, const GooFit::Observable &var) {
+auto operator<<(std::ostream &o, const GooFit::Observable &var) -> std::ostream & {
     o << var.getName() << ": " << var.getValue() << " (" << var.getNumBins() << " bins)";
     o << " [" << var.getLowerLimit() << ", " << var.getUpperLimit() << "]";
     if(var.getIndex() >= 0)
@@ -56,6 +50,6 @@ std::ostream &operator<<(std::ostream &o, const GooFit::Observable &var) {
     return o;
 }
 
-std::istream &operator>>(std::istream &i, GooFit::Observable &var) { return i >> *var.value; }
+auto operator>>(std::istream &i, GooFit::Observable &var) -> std::istream & { return i >> *var.value; }
 
 } // namespace GooFit

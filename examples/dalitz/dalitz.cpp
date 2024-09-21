@@ -20,15 +20,14 @@
 #include <goofit/PDFs/basic/PolynomialPdf.h>
 #include <goofit/PDFs/combine/AddPdf.h>
 #include <goofit/PDFs/combine/ProdPdf.h>
-#include <goofit/PDFs/physics/DalitzPlotPdf.h>
+#include <goofit/PDFs/physics/Amp3Body.h>
 #include <goofit/PDFs/physics/DalitzPlotter.h>
 #include <goofit/PDFs/physics/DalitzVetoPdf.h>
 #include <goofit/PDFs/physics/ResonancePdf.h>
 #include <goofit/UnbinnedDataSet.h>
 #include <goofit/Variable.h>
-#include <goofit/detail/Style.h>
+#include <goofit/utilities/Style.h>
 
-using namespace std;
 using namespace GooFit;
 
 Variable fixedRhoMass("rho_mass", 0.7758, 0.01, 0.7, 0.8);
@@ -76,12 +75,9 @@ void getToyData(std::string toyFileName, GooFit::Application &app, DataSet &data
     std::ifstream reader(toyFileName);
     std::string buffer;
 
-    while(!reader.eof()) {
-        reader >> buffer;
-
+    while(reader >> buffer) {
         if(buffer == "====")
             break;
-
         std::cout << buffer;
     }
 
@@ -125,7 +121,7 @@ void getToyData(std::string toyFileName, GooFit::Application &app, DataSet &data
 
 void makeToyData(DalitzPlotter &dplotter, UnbinnedDataSet &data) {}
 
-DalitzPlotPdf *makeSignalPdf(Observable m12, Observable m13, EventNumber eventNumber, GooPdf *eff = 0) {
+Amp3Body *makeSignalPdf(Observable m12, Observable m13, EventNumber eventNumber, GooPdf *eff = 0) {
     DecayInfo3 dtop0pp;
     dtop0pp.motherMass   = _mD0;
     dtop0pp.daug1Mass    = piZeroMass;
@@ -302,24 +298,30 @@ DalitzPlotPdf *makeSignalPdf(Observable m12, Observable m13, EventNumber eventNu
     bool fitMasses = false;
 
     if(!fitMasses) {
-        for(vector<ResonancePdf *>::iterator res = dtop0pp.resonances.begin(); res != dtop0pp.resonances.end(); ++res) {
+        for(std::vector<ResonancePdf *>::iterator res = dtop0pp.resonances.begin(); res != dtop0pp.resonances.end();
+            ++res) {
             (*res)->setParameterConstantness(true);
         }
     }
 
     if(!eff) {
         // By default create a constant efficiency.
-        vector<Variable> offsets       = {constantZero, constantZero};
-        vector<Observable> observables = {m12, m13};
-        vector<Variable> coefficients  = {constantOne};
+        std::vector<Variable> offsets;
+        std::vector<Observable> observables;
+        std::vector<Variable> coefficients;
 
+        observables.push_back(m12);
+        observables.push_back(m13);
+        offsets.push_back(constantZero);
+        offsets.push_back(constantZero);
+        coefficients.push_back(constantOne);
         eff = new PolynomialPdf("constantEff", observables, coefficients, offsets, 0);
     }
 
-    return new DalitzPlotPdf("signalPDF", m12, m13, eventNumber, dtop0pp, eff);
+    return new Amp3Body("signalPDF", m12, m13, eventNumber, dtop0pp, eff);
 }
 
-int runToyFit(DalitzPlotPdf *signal, UnbinnedDataSet *data) {
+int runToyFit(Amp3Body *signal, UnbinnedDataSet *data) {
     // EXERCISE 1 (real part): Create a PolynomialPdf which models
     // the efficiency you imposed in the preliminary, and use it in constructing
     // the signal PDF.
@@ -357,7 +359,9 @@ int main(int argc, char **argv) {
     GooFit::Application app("Dalitz example", argc, argv);
 
     std::string filename = "dalitz_toyMC_000.txt";
-    app.add_option("-f,--filename,filename", filename, "File to read in", true)->check(GooFit::ExistingFile);
+    app.add_option("-f,--filename,filename", filename, "File to read in")
+        ->capture_default_str()
+        ->check(GooFit::ExistingFile);
 
     bool make_toy;
     app.add_flag("-m,--make-toy", make_toy, "Make a toy instead of reading a file in");
@@ -377,7 +381,7 @@ int main(int argc, char **argv) {
     UnbinnedDataSet data({m12, m13, eventNumber});
 
     // Set up the model
-    DalitzPlotPdf *signal = makeSignalPdf(m12, m13, eventNumber);
+    Amp3Body *signal = makeSignalPdf(m12, m13, eventNumber);
 
     // A wrapper for plotting without complex number segfault
     ProdPdf prodpdf{"prodpdf", {signal}};

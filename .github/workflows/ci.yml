@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - v*
+  pull_request:
+    branches:
+      - master
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: OMP / Test
+
+    runs-on: ubuntu-latest
+    container:
+      image: rootproject/root:6.24.06-ubuntu20.04
+
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        submodules: true
+
+    - name: Configure
+      run: cmake -S . -B build -DGOOFIT_DEVICE=OMP -DCMAKE_CXX_STANDARD=14
+    - name: Build
+      run: cmake --build build -j "$(getconf _NPROCESSORS_ONLN)"
+    - name: Run Tests
+      run: cmake --build build --target test
+      env:
+        CTEST_OUTPUT_ON_FAILURE: true
+        GTEST_COLOR: true
+
+  clang-tidy:
+    runs-on: ubuntu-latest
+    container: silkeh/clang:15
+    steps:
+    - name: Get Git
+      run: apt update && apt install -y git
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Configure
+      run: >
+        cmake -S . -B build
+        -DCMAKE_CXX_CLANG_TIDY="$(which clang-tidy)"
+        -DDOWNLOAD_EIGEN=ON
+        -DDOWNLOAD_CATCH=ON
+        -DCMAKE_CXX_STANDARD=17
+    - name: Build
+      run: cmake --build build -j 2 -- --keep-going
+
+
+
+  cuda-build:
+    name: CUDA / Build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cuda:
+          - 8.0-devel-ubuntu16.04
+          - 9.2-devel-ubuntu18.04
+          # - 11.2.2-devel-ubuntu18.04 - needs built-in thrust support
+
+    container: "nvidia/cuda:${{matrix.cuda}}"
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        submodules: true
+    - name: Add wget and python3
+      run: apt-get update && apt-get install -y wget python3-dev
+    - name: Install Modern CMake
+      run: wget -qO- "https://cmake.org/files/v3.23/cmake-3.23.2-linux-x86_64.tar.gz" | tar --strip-components=1 -xz -C /usr/local
+    - name: Configure
+      run: cmake -S . -B build -DGOOFIT_ARCH=3.5 -DGOOFIT_SPLASH=OFF
+    - name: Build
+      run: cmake --build build -j2 -v
+    - name: Verify Python built
+      if: matrix.cuda != '8.0-devel-ubuntu16.04'
+      run: PYTHONPATH=./build python3 -m goofit
+
+  configure:
+    name: Configure
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+
+    - name: CMake 3.18 OMP
+      uses: ./.github/actions/cmake_config
+      with:
+        version: 3.18.6
+        options: -DGOOFIT_DEVICE=OMP
+      if: success() || failure()
+    - name: CMake 3.18 CUDA
+      uses: ./.github/actions/cmake_config
+      with:
+        version: 3.18.6
+        options: -DGOOFIT_DEVICE=CUDA
+      if: success() || failure()
+
+    - name: CMake 3.23 OMP
+      uses: ./.github/actions/cmake_config
+      with:
+        version: 3.23.1
+        options: -DGOOFIT_DEVICE=OMP
+      if: success() || failure()
+    - name: CMake 3.23 CUDA
+      uses: ./.github/actions/cmake_config
+      with:
+        version: 3.23.1
+        options: -DGOOFIT_DEVICE=CUDA
+      if: success() || failure()

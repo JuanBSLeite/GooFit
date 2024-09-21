@@ -1,12 +1,17 @@
+#include <goofit/PDFs/ParameterContainer.h>
 #include <goofit/PDFs/basic/NovosibirskPdf.h>
 
 namespace GooFit {
 
-__device__ fptype device_Novosibirsk(fptype *evt, fptype *p, unsigned int *indices) {
-    fptype _Mean  = p[indices[1]];
-    fptype _Sigma = p[indices[2]];
-    fptype _Tail  = p[indices[3]];
-    fptype x      = evt[indices[2 + indices[0]]];
+__device__ auto device_Novosibirsk(fptype *evt, ParameterContainer &pc) -> fptype {
+    int id = pc.getObservable(0);
+
+    fptype _Mean  = pc.getParameter(0);
+    fptype _Sigma = pc.getParameter(1);
+    fptype _Tail  = pc.getParameter(2);
+    fptype x      = RO_CACHE(evt[id]);
+
+    pc.incrementIndex(1, 3, 0, 1, 1);
 
     fptype qa = 0;
     fptype qb = 0;
@@ -37,13 +42,10 @@ __device__ fptype device_Novosibirsk(fptype *evt, fptype *p, unsigned int *indic
 __device__ device_function_ptr ptr_to_Novosibirsk = device_Novosibirsk;
 
 __host__ NovosibirskPdf::NovosibirskPdf(std::string n, Observable _x, Variable mean, Variable sigma, Variable tail)
-    : GooPdf(n, _x) {
-    std::vector<unsigned int> pindices;
-    pindices.push_back(registerParameter(mean));
-    pindices.push_back(registerParameter(sigma));
-    pindices.push_back(registerParameter(tail));
-    GET_FUNCTION_ADDR(ptr_to_Novosibirsk);
-    initialize(pindices);
+    : GooPdf("NovosibirskPdf", n, _x, mean, sigma, tail) {
+    registerFunction("ptr_to_Novosibirsk", ptr_to_Novosibirsk);
+
+    initialize();
 }
 
 } // namespace GooFit

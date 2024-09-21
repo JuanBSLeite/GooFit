@@ -1,21 +1,18 @@
-[submodule "cmake"]
+[submodule "extern/cmake"]
 	path = extern/cmake_utils
 	url = ../../CLIUtils/cmake.git
 [submodule "extern/generics"]
 	path = extern/generics
-	url = ../generics.git
+	url = ../../GooFit/generics.git
 [submodule "extern/CLI11"]
 	path = extern/CLI11
 	url = ../../CLIUtils/CLI11.git
 [submodule "extern/Minuit2"]
 	path = extern/Minuit2
-	url = ../Minuit2.git
+	url = ../../GooFit/Minuit2.git
 [submodule "extern/thrust"]
 	path = extern/thrust
 	url = ../../thrust/thrust.git
-[submodule "extern/googletest"]
-	path = extern/googletest
-	url = ../../google/googletest.git
 [submodule "extern/rang"]
 	path = extern/rang
 	url = ../../agauniyal/rang.git
@@ -24,7 +21,7 @@
 	url = ../../pybind/pybind11.git
 [submodule "extern/FeatureDetector"]
 	path = extern/FeatureDetector
-	url = ../FeatureDetector.git
+	url = ../../GooFit/FeatureDetector.git
 [submodule "extern/fmt"]
 	path = extern/fmt
 	url = ../../fmtlib/fmt.git
@@ -33,13 +30,13 @@
 	url = ../../arsenm/sanitizers-cmake.git
 [submodule "extern/MCBooster"]
 	path = extern/MCBooster
-	url = ../MCBooster.git
-[submodule "extern/cuda_support"]
-	path = extern/cuda_support
-	url = ../../CLIUtils/cuda_support.git
+	url = ../../GooFit/MCBooster.git
 [submodule "extern/Eigen"]
 	path = extern/Eigen
-	url = ../../eigenteam/eigen-git-mirror.git
+	url = https://gitlab.com/libeigen/eigen.git
 [submodule "extern/modern_cmake"]
 	path = extern/modern_cmake
 	url = ../../CLIUtils/modern_cmake.git
+[submodule "extern/catch2"]
+	path = extern/catch2
+	url = ../../catchorg/catch2.git

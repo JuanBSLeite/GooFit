@@ -1,10 +1,13 @@
 #pragma once
 
-#include <thrust/functional.h>
-
+#include <goofit/FitControl.h>
+#include <goofit/PDFs/MetricPointer.h>
 #include <goofit/PDFs/MetricTaker.h>
+#include <goofit/PDFs/detail/Globals.h>
 #include <goofit/PdfBase.h>
 #include <goofit/UnbinnedDataSet.h>
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
 
 #ifdef ROOT_FOUND
 class TH1D;
@@ -12,94 +15,93 @@ class TH1D;
 
 namespace GooFit {
 
-enum class EvalFunc : size_t { Eval = 0, NLL, Prob, BinAvg, BinWithError, Chisq };
-
-constexpr const char *evalfunc_vals[]
-    = {"ptr_to_Eval", "ptr_to_NLL", "ptr_to_Prob", "ptr_to_BinAvg", "ptr_to_BinWithError", "ptr_to_Chisq"};
-
-constexpr const char *evalfunc_to_string(EvalFunc val) { return evalfunc_vals[static_cast<size_t>(val)]; }
-
-#ifdef SEPARABLE
-
-/// Holds device-side fit parameters.
-extern __constant__ fptype cudaArray[maxParams];
-
-/// Holds functor-specific indices into cudaArray. Also overloaded to hold integer constants (ie parameters that cannot
-/// vary.)
-extern __constant__ unsigned int paramIndices[maxParams];
-
-/// Holds non-integer constants. Notice that first entry is number of events.
-extern __constant__ fptype functorConstants[maxParams];
-
-extern __constant__ fptype normalisationFactors[maxParams];
-
-extern __device__ void *device_function_table[200];
-extern void *host_function_table[200];
-extern unsigned int num_device_functions;
-extern std::map<void *, int> functionAddressToDeviceIndexMap;
-#endif
-
-__device__ int dev_powi(int base, int exp); // Implemented in SmoothHistogramPdf.
-void *getMetricPointer(std::string name);
-
-/// Pass event, parameters, index into parameters.
-typedef fptype (*device_function_ptr)(fptype *, fptype *, unsigned int *);
-
-typedef fptype (*device_metric_ptr)(fptype, fptype *, unsigned int);
-
-extern void *host_fcn_ptr;
-
-__device__ fptype callFunction(fptype *eventAddress, unsigned int functionIdx, unsigned int paramIdx);
+// Forward declare
+struct ParameterContainer;
+__device__ auto callFunction(fptype *eventAddress, ParameterContainer &pc) -> fptype;
 
 class GooPdf : public PdfBase {
+  protected:
+    // These are helper methods that do all the work
+
+    /// This collects the number of variables for the thrust call
+    /// -(n+2) for binned evalute's
+    auto get_event_size() const -> int;
+
+    /// This reduces the current function over the data. Does *not* prepare
+    /// or normalize TODO: Remove const if caching added
+    __host__ auto reduce_with_metric() const -> double;
+
+    /// This evaluates the current function over the data. Does *not* prepare
+    /// or normalize  TODO: Remove const if caching added
+    __host__ void evaluate_with_metric(thrust::device_vector<fptype> &results) const;
+
+    /// Shortcut to allow .cpp files to use this if they need to
+    __host__ auto evaluate_with_metric() const -> thrust::host_vector<fptype>;
+
   public:
     using PdfBase::PdfBase;
 
-    double calculateNLL() const override;
+    ~GooPdf() override;
+
+    /// This is the total number of bins in the normalize grid
+    __host__ auto get_bin_grid_size() const -> int;
+
+    /// This is the total ND Volume of a cube in the normalize grid
+    __host__ auto get_bin_grid_volume() const -> fptype;
+
+    /// This reduces the current function over the bin grid. Does *not* prepare
+    /// or normalize. Used by normalize.  TODO: Remove const if caching added
+    __host__ auto reduce_with_bins() const -> double;
+
+    __host__ auto calculateNLL() -> double override;
 
     /// NB: This does not project correctly in multidimensional datasets, because all observables
     /// other than 'var' will have, for every event, whatever value they happened to get set to last
     /// time they were set. This is likely to be the value from the last event in whatever dataset
     /// you were fitting to, but at any rate you don't get the probability-weighted integral over
     /// the other observables.
-    __host__ std::vector<fptype> evaluateAtPoints(Observable var);
-    
+    __host__ auto evaluateAtPoints(Observable var) -> std::vector<fptype>;
+
     /// A normalize function. This fills in the host_normalize
-    __host__ fptype normalize() const override;
+    __host__ auto normalize() -> fptype override;
 
     /// Just in case you are British and the previous spelling is offensive
-    __host__ fptype normalise() const { return normalize(); }
+    __host__ auto normalise() -> fptype { return normalize(); }
 
-    __host__ virtual fptype integrate(fptype lo, fptype hi) const { return 0; }
-    __host__ bool hasAnalyticIntegral() const override { return false; }
-    __host__ fptype getValue(EvalFunc evalfunc = EvalFunc::Eval);
+    __host__ virtual auto integrate(fptype lo, fptype hi) const -> fptype;
+    __host__ auto hasAnalyticIntegral() const -> bool override;
+    __host__ auto getValue(EvalFunc evalfunc = EvalFunc::Eval) -> fptype;
+
+    __host__ void listAllComponents(PdfBase *someComponent);
 
     /// Produce a list of probabilies at points
-    __host__ std::vector<std::vector<fptype>> getCompProbsAtDataPoints();
+    __host__ auto getCompProbsAtDataPoints() -> std::vector<std::vector<fptype>>;
 
     /// Set an equidistant grid based on the stored variable binning
-    __host__ UnbinnedDataSet makeGrid();
+    __host__ auto makeGrid() -> UnbinnedDataSet;
 
-    __host__ void initialize(std::vector<unsigned int> pindices, void *dev_functionPtr = host_fcn_ptr);
+    __host__ void initialize();
     __host__ void scan(Observable var, std::vector<fptype> &values);
     __host__ void setFitControl(std::shared_ptr<FitControl> fc) override;
+    //  for debugging, add a version with an argument that allows
+    //  us to track who called this method  mds 211220
+    __host__ void setFitControl_A(std::shared_ptr<FitControl>, std::string caller) override;
     __host__ virtual void setMetrics();
     __host__ void setParameterConstantness(bool constant = true);
 
-    __host__ virtual void transformGrid(fptype *host_output);
-    static __host__ int findFunctionIdx(void *dev_functionPtr);
+    static __host__ auto findFunctionIdx(void *dev_functionPtr) -> int;
+    static __host__ auto lookUpFunctionIdx(void *dev_functionPtr) -> int;
     __host__ void setDebugMask(int mask, bool setSpecific = true) const;
 
 #ifdef ROOT_FOUND
     /// Plot a PDF to a ROOT histogram
-    __host__ TH1D *plotToROOT(Observable var, double normFactor = 1, std::string name = "");
+    __host__ auto plotToROOT(Observable var, double normFactor = 1, std::string name = "") -> TH1D *;
 #endif
 
-  protected:
-    __host__ virtual double sumOfNll(int numVars) const;
-    std::shared_ptr<MetricTaker> logger;
+    __host__ void setIndices() override;
 
-  private:
+  protected:
+    std::shared_ptr<MetricTaker> logger;
 };
 
 } // namespace GooFit

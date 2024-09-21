@@ -6,11 +6,13 @@
 #include <goofit/Variable.h>
 
 #include <algorithm>
+#include <random>
 #include <set>
 #include <utility>
 
 #include <goofit/BinnedDataSet.h>
 #include <goofit/FitManager.h>
+#include <goofit/PDFs/GooPdf.h>
 #include <goofit/UnbinnedDataSet.h>
 
 #include <Minuit2/FunctionMinimum.h>
@@ -18,69 +20,44 @@
 namespace {
 
 template <typename T>
-bool find_in(std::vector<T> list, T item) {
+auto find_in(std::vector<T> list, T item) -> bool {
     return std::find_if(std::begin(list), std::end(list), [item](T p) { return p == item; }) != std::end(list);
 }
 } // namespace
 
 namespace GooFit {
 
-fptype *dev_event_array;
-fptype host_normalisation[maxParams];
-fptype host_params[maxParams];
-unsigned int host_indices[maxParams];
-
-int host_callnumber = 0;
-int totalParams     = 0;
-int totalConstants  = 1; // First constant is reserved for number of events.
-
-__host__ void PdfBase::checkInitStatus(std::vector<std::string> &unInited) const {
-    if(!properlyInitialised)
-        unInited.push_back(getName());
+__host__ void PdfBase::recursiveSetNormalization(fptype norm, bool subpdf) {
+    host_normalizations.at(normalIdx + 1) = norm;
+    cachedNormalization                   = norm;
 
     for(auto component : components) {
-        component->checkInitStatus(unInited);
+        component->recursiveSetNormalization(norm, true);
     }
+    if(!subpdf)
+        host_normalizations.sync(d_normalizations);
 }
 
-__host__ void PdfBase::recursiveSetNormalisation(fptype norm) const {
-    host_normalisation[parameters] = norm;
+__host__ void PdfBase::registerParameter(Variable var) { parametersList.push_back(var); }
 
-    for(auto component : components) {
-        component->recursiveSetNormalisation(norm);
-    }
-}
-
-__host__ unsigned int PdfBase::registerParameter(Variable var) {
-    static int unique_param = 0;
-
-    if(find_in(parameterList, var))
-        return static_cast<unsigned int>(var.getIndex());
-
-    if(var.getIndex() < 0) {
-        GOOFIT_DEBUG("{}: Registering p:{} for {}", getName(), unique_param, var.getName());
-        var.setIndex(unique_param++);
-    }
-
-    parameterList.push_back(var);
-    return static_cast<unsigned int>(var.getIndex());
-}
+__host__ void PdfBase::registerConstant(fptype value) { constantsList.push_back(value); }
 
 __host__ void PdfBase::unregisterParameter(Variable var) {
     GOOFIT_DEBUG("{}: Removing {}", getName(), var.getName());
 
+    auto pos = std::find(parametersList.begin(), parametersList.end(), var);
+
+    if(pos != parametersList.end())
+        parametersList.erase(pos);
+
     for(PdfBase *comp : components) {
         comp->unregisterParameter(var);
     }
-
-    var.setIndex(-1);
-    // Once copies are used, this might able to be unregistred from a lower PDF only
-    // For now, it gets completely cleared.
 }
 
-__host__ std::vector<Variable> PdfBase::getParameters() const {
+__host__ auto PdfBase::getParameters() const -> std::vector<Variable> {
     std::vector<Variable> ret;
-    for(const Variable &param : parameterList)
+    for(const Variable &param : parametersList)
         ret.push_back(param);
 
     for(const PdfBase *comp : components) {
@@ -92,8 +69,8 @@ __host__ std::vector<Variable> PdfBase::getParameters() const {
     return ret;
 }
 
-__host__ Variable *PdfBase::getParameterByName(std::string n) {
-    for(Variable &p : parameterList) {
+__host__ auto PdfBase::getParameterByName(std::string n) -> Variable * {
+    for(Variable &p : parametersList) {
         if(p.getName() == n)
             return &p;
     }
@@ -108,9 +85,9 @@ __host__ Variable *PdfBase::getParameterByName(std::string n) {
     return nullptr;
 }
 
-__host__ std::vector<Observable> PdfBase::getObservables() const {
+__host__ auto PdfBase::getObservables() const -> std::vector<Observable> {
     std::vector<Observable> ret;
-    for(const Observable &obs : observables)
+    for(const Observable &obs : observablesList)
         ret.push_back(obs);
 
     for(const PdfBase *comp : components) {
@@ -122,21 +99,21 @@ __host__ std::vector<Observable> PdfBase::getObservables() const {
     return ret;
 }
 
-__host__ unsigned int PdfBase::registerConstants(unsigned int amount) {
-    if(totalConstants + amount >= maxParams)
-        throw GooFit::GeneralError(
-            "totalConstants {} + amount {} can not be more than {}", totalConstants, amount, maxParams);
-    cIndex = totalConstants;
-    totalConstants += amount;
-    return cIndex;
-}
-
 void PdfBase::registerObservable(Observable obs) {
-    if(find_in(observables, obs))
+    if(find_in(observablesList, obs))
         return;
 
-    GOOFIT_DEBUG("{}: Registering o:{} for {}", getName(), observables.size(), obs.getName());
-    observables.push_back(obs);
+    observablesList.push_back(obs);
+}
+
+void PdfBase::setupObservables() {
+    int counter = 0;
+    for(auto &i : observablesList) {
+        i.setIndex(counter);
+        counter++;
+    }
+
+    GOOFIT_DEBUG("SetupObservables {} ", counter);
 }
 
 __host__ void PdfBase::setIntegrationFineness(int i) {
@@ -144,9 +121,9 @@ __host__ void PdfBase::setIntegrationFineness(int i) {
     generateNormRange();
 }
 
-__host__ bool PdfBase::parametersChanged() const {
+__host__ auto PdfBase::parametersChanged() const -> bool {
     return std::any_of(
-        std::begin(parameterList), std::end(parameterList), [](const Variable &v) { return v.getChanged(); });
+        std::begin(parametersList), std::end(parametersList), [](const Variable &v) { return v.getChanged(); });
 }
 
 __host__ void PdfBase::setNumPerTask(PdfBase *p, const int &c) {
@@ -154,12 +131,118 @@ __host__ void PdfBase::setNumPerTask(PdfBase *p, const int &c) {
         return;
 
     m_iEventsPerTask = c;
+
+    // we need to set all children components
+    for(auto &component : components)
+        component->setNumPerTask(component, c);
 }
 
-__host__ ROOT::Minuit2::FunctionMinimum PdfBase::fitTo(DataSet *data, int verbosity) {
+__host__ auto PdfBase::fitTo(DataSet *data, int verbosity) -> ROOT::Minuit2::FunctionMinimum {
+    auto old = getData();
     setData(data);
+    auto funmin = fit(verbosity);
+    setData(old);
+    return funmin;
+}
+
+__host__ auto PdfBase::fit(int verbosity) -> ROOT::Minuit2::FunctionMinimum {
     FitManager fitter{this};
     fitter.setVerbosity(verbosity);
     return fitter.fit();
 }
+
+void PdfBase::fillMCDataSimple(size_t events, unsigned int seed) {
+    // Setup bins
+    if(observablesList.size() != 1)
+        throw GeneralError("You can only fill MC on a 1D dataset with a simple fill");
+
+    Observable var = observablesList.at(0);
+
+    UnbinnedDataSet data{var};
+    data.fillWithGrid();
+    auto origdata = getData();
+
+    if(origdata == nullptr)
+        throw GeneralError("Can't run on a PDF with no DataSet to fill!");
+
+    setData(&data);
+    std::vector<double> pdfValues = dynamic_cast<GooPdf *>(this)->getCompProbsAtDataPoints()[0];
+
+    // Setup random numbers
+    if(seed == 0) {
+        std::random_device rd;
+        seed = rd();
+    }
+    std::mt19937 gen(seed);
+
+    // Uniform distribution
+    std::uniform_real_distribution<> unihalf(-.5, .5);
+    std::uniform_real_distribution<> uniwhole(0.0, 1.0);
+
+    // CumSum in other languages
+    std::vector<double> integral(pdfValues.size());
+    std::partial_sum(pdfValues.begin(), pdfValues.end(), integral.begin());
+
+    // Make this a 0-1 fraction by dividing by the end value
+    std::for_each(integral.begin(), integral.end(), [&integral](double &val) { val /= integral.back(); });
+
+    for(size_t i = 0; i < events; i++) {
+        double r = uniwhole(gen);
+
+        // Binary search for integral[cell-1] < r < integral[cell]
+        size_t j = std::lower_bound(integral.begin(), integral.end(), r) - integral.begin();
+
+        // Fill in the grid randomly
+        double varValue = data.getValue(var, j) + var.getBinSize() * unihalf(gen);
+
+        var.setValue(varValue);
+        origdata->addEvent();
+    }
+
+    setData(origdata);
+}
+
+auto operator<<(std::ostream &out, const PdfBase &pdf) -> std::ostream & {
+    out << "GooPdf::" << pdf.getPdfName() << "(\"" << pdf.getName() << "\") :\n";
+    out << "  Device function: " << pdf.reflex_name_ << "\n";
+
+    out << "  Observable" << (pdf.observablesList.size() > 1 ? "s" : "") << ": ";
+    for(const auto &item : pdf.observablesList)
+        out << item.getName() << (item == pdf.observablesList.back() ? "" : ", ");
+    out << "\n";
+
+    out << "  Parameter" << (pdf.parametersList.size() > 1 ? "s" : "") << ": ";
+    for(const auto &item : pdf.parametersList)
+        out << item.getName() << (item == pdf.parametersList.back() ? "" : ", ");
+    out << "\n";
+
+    return out;
+}
+
+bool PdfBase::areParamsandConstantsEqualByVal(const PdfBase &other) const {
+    if(this->getParameters().size() != other.getParameters().size()) {
+        return false;
+    }
+    for(int p = 0; p < this->getParameters().size(); p++) {
+        Variable thisParam  = this->getParameters()[p];
+        Variable otherParam = other.getParameters()[p];
+        if(!thisParam.isEqualNameValLimits(otherParam)) {
+            return false;
+        }
+    }
+
+    if(this->constantsList.size() != other.constantsList.size()) {
+        return false;
+    }
+    for(int c = 0; c < this->constantsList.size(); c++) {
+        fptype thisConst  = this->constantsList[c];
+        fptype otherConst = other.constantsList[c];
+        if(thisConst != otherConst) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 } // namespace GooFit

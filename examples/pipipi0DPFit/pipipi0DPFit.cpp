@@ -34,14 +34,16 @@
 #include <goofit/PDFs/combine/EventWeightedAddPdf.h>
 #include <goofit/PDFs/combine/MappedPdf.h>
 #include <goofit/PDFs/combine/ProdPdf.h>
+#include <goofit/PDFs/physics/Amp3Body_IS.h>
+#include <goofit/PDFs/physics/Amp3Body_TD.h>
 #include <goofit/PDFs/physics/DalitzVetoPdf.h>
-#include <goofit/PDFs/physics/IncoherentSumPdf.h>
 #include <goofit/PDFs/physics/ResonancePdf.h>
-#include <goofit/PDFs/physics/TddpPdf.h>
-#include <goofit/PDFs/physics/ThreeGaussResolution_Aux.h>
-#include <goofit/PDFs/physics/TruthResolution_Aux.h>
+#include <goofit/PDFs/physics/ThreeGaussResolution.h>
+#include <goofit/PDFs/physics/TruthResolution.h>
+#include <goofit/PDFs/physics/detail/SpecialIncoherentIntegrator.h>
+#include <goofit/PDFs/physics/detail/SpecialIncoherentResonanceCalculator.h>
 #include <goofit/Variable.h>
-#include <goofit/detail/Uncertain.h>
+#include <goofit/utilities/Uncertain.h>
 
 #include <goofit/fitting/FitManagerMinuit1.h>
 #include <goofit/fitting/FitManagerMinuit2.h>
@@ -50,7 +52,6 @@
 #include <goofit/PDFs/combine/CompositePdf.h>
 #include <goofit/UnbinnedDataSet.h>
 
-using namespace std;
 using namespace GooFit;
 
 TCanvas *foo;
@@ -78,6 +79,8 @@ Observable *wBkg1        = nullptr;
 Observable *wBkg2        = nullptr;
 Observable *wBkg3        = nullptr;
 Observable *wBkg4        = nullptr;
+Observable *mtag         = nullptr;
+Observable *d0tag        = nullptr;
 
 bool fitMasses = false;
 Variable fixedRhoMass("rho_mass", 0.7758, 0.01, 0.7, 0.8);
@@ -118,8 +121,8 @@ bool drop_f0_600           = false;
 bool gaussBkgTime          = false;
 bool mikhailSetup          = false;
 int bkgHistBins            = 80;
-string paramUp             = "";
-string paramDn             = "";
+std::string paramUp        = "";
+std::string paramDn        = "";
 int bkgHistRandSeed        = -1;
 
 const fptype _mD0       = 1.86484;
@@ -132,21 +135,22 @@ enum Resolutions { DplotRes = 1, TimeRes = 2, Efficiency = 4 };
 size_t maxEvents = 100000;
 
 Variable motherM("motherM", 1.86484);
-Variable chargeM("chargeM", 0.13957018);
+Variable chargeM1("chargeM1", 0.13957018);
+Variable chargeM2("chargeM2", 0.13957018);
 Variable neutrlM("neutrlM", 0.1349766);
 Variable constantBigM("constantBigM", _mD02 + 2 * piPlusMass * piPlusMass + piZeroMass * piZeroMass);
 
 // Constants used in more than one PDF component.
+Variable constantZero("constantZero", 0);
 Variable constantOne("constantOne", 1);
 Variable constantTwo("constantTwo", 2);
-Variable constantZero("constantZero", 0);
 Variable constantMinusOne("constantMinusOne", -1);
-Variable minDalitzX("minDalitzX", pow(piPlusMass + piZeroMass, 2));
-Variable maxDalitzX("maxDalitzX", pow(_mD0 - piPlusMass, 2));
-Variable minDalitzY("minDalitzY", pow(piPlusMass + piZeroMass, 2));
-Variable maxDalitzY("maxDalitzY", pow(_mD0 - piPlusMass, 2));
-Variable minDalitzZ("minDalitzZ", pow(piPlusMass + piPlusMass, 2));
-Variable maxDalitzZ("maxDalitzZ", pow(_mD0 - piZeroMass, 2));
+Variable minDalitzX("minDalitzX", std::pow(piPlusMass + piZeroMass, 2));
+Variable maxDalitzX("maxDalitzX", std::pow(_mD0 - piPlusMass, 2));
+Variable minDalitzY("minDalitzY", std::pow(piPlusMass + piZeroMass, 2));
+Variable maxDalitzY("maxDalitzY", std::pow(_mD0 - piPlusMass, 2));
+Variable minDalitzZ("minDalitzZ", std::pow(piPlusMass + piPlusMass, 2));
+Variable maxDalitzZ("maxDalitzZ", std::pow(_mD0 - piZeroMass, 2));
 
 std::vector<Variable> weights;
 std::vector<Observable> obsweights;
@@ -155,13 +159,13 @@ std::vector<PdfBase *> comps;
 TH1F *dataTimePlot        = nullptr;
 TH1F *loM23Sigma          = nullptr;
 TH1F *hiM23Sigma          = nullptr;
-TddpPdf *signalDalitz     = nullptr;
-IncoherentSumPdf *incsum1 = nullptr;
-IncoherentSumPdf *incsum2 = nullptr;
-IncoherentSumPdf *incsum3 = nullptr;
-IncoherentSumPdf *incsum4 = nullptr;
-IncoherentSumPdf *incsum5 = nullptr;
-IncoherentSumPdf *incsum6 = nullptr;
+Amp3Body_TD *signalDalitz = nullptr;
+Amp3Body_IS *incsum1      = nullptr;
+Amp3Body_IS *incsum2      = nullptr;
+Amp3Body_IS *incsum3      = nullptr;
+Amp3Body_IS *incsum4      = nullptr;
+Amp3Body_IS *incsum5      = nullptr;
+Amp3Body_IS *incsum6      = nullptr;
 GooPdf *sig0_jsugg        = nullptr;
 GooPdf *bkg2_jsugg        = nullptr;
 GooPdf *bkg3_jsugg        = nullptr;
@@ -237,25 +241,25 @@ fptype cpuGetM23(fptype massPZ, fptype massPM) {
 }
 
 bool cpuDalitz(fptype m12, fptype m13, fptype bigM, fptype dm1, fptype dm2, fptype dm3) {
-    if(m12 < pow(dm1 + dm2, 2))
+    if(m12 < std::pow(dm1 + dm2, 2))
         return false; // This m12 cannot exist, it's less than the square of the (1,2) particle mass.
 
-    if(m12 > pow(bigM - dm3, 2))
+    if(m12 > std::pow(bigM - dm3, 2))
         return false; // This doesn't work either, there's no room for an at-rest 3 daughter.
 
     // Calculate energies of 1 and 3 particles in m12 rest frame.
-    fptype e1star = 0.5 * (m12 - dm2 * dm2 + dm1 * dm1) / sqrt(m12);
-    fptype e3star = 0.5 * (bigM * bigM - m12 - dm3 * dm3) / sqrt(m12);
+    fptype e1star = 0.5 * (m12 - dm2 * dm2 + dm1 * dm1) / std::sqrt(m12);
+    fptype e3star = 0.5 * (bigM * bigM - m12 - dm3 * dm3) / std::sqrt(m12);
 
     // Bounds for m13 at this value of m12.
-    fptype minimum
-        = pow(e1star + e3star, 2) - pow(sqrt(e1star * e1star - dm1 * dm1) + sqrt(e3star * e3star - dm3 * dm3), 2);
+    fptype minimum = std::pow(e1star + e3star, 2)
+                     - std::pow(std::sqrt(e1star * e1star - dm1 * dm1) + std::sqrt(e3star * e3star - dm3 * dm3), 2);
 
     if(m13 < minimum)
         return false;
 
-    fptype maximum
-        = pow(e1star + e3star, 2) - pow(sqrt(e1star * e1star - dm1 * dm1) - sqrt(e3star * e3star - dm3 * dm3), 2);
+    fptype maximum = std::pow(e1star + e3star, 2)
+                     - std::pow(std::sqrt(e1star * e1star - dm1 * dm1) - std::sqrt(e3star * e3star - dm3 * dm3), 2);
 
     if(m13 > maximum)
         return false;
@@ -346,6 +350,8 @@ void getToyData(float sigweight = 0.9) {
         vars.push_back(*wSig0);
         //  vars.push_back(wBkg1);
         //  vars.push_back(wBkg2);
+        vars.push_back(*mtag);
+        vars.push_back(*d0tag);
         data = new UnbinnedDataSet(vars);
     }
 
@@ -395,6 +401,8 @@ void getToyData(float sigweight = 0.9) {
         //    wSig0->getValue() = sigweight;
         wSig0->setValue(calcToyWeight(sigweight, md0));
         sigprob += wSig0->getValue();
+        mtag->setValue(0);
+        d0tag->setValue(0);
         data->addEvent();
         nsig++;
 
@@ -424,6 +432,8 @@ void getToyData(float sigweight = 0.9) {
         //    wSig0->getValue() = sigweight;
         wSig0->setValue(calcToyWeight(sigweight, md0));
         sigprob += wSig0->getValue();
+        mtag->setValue(0);
+        d0tag->setValue(0);
         data->addEvent();
     }
 
@@ -443,9 +453,9 @@ GooPdf *makeKzeroVeto() {
 
     VetoInfo kVetoInfo(Variable("veto_min", 0.475 * 0.475), Variable("veto_max", 0.505 * 0.505), PAIR_23);
 
-    vector<VetoInfo> vetos;
+    std::vector<VetoInfo> vetos;
     vetos.push_back(kVetoInfo);
-    kzero_veto = new DalitzVetoPdf("kzero_veto", *m12, *m13, motherM, neutrlM, chargeM, chargeM, vetos);
+    kzero_veto = new DalitzVetoPdf("kzero_veto", *m12, *m13, motherM, neutrlM, chargeM1, chargeM2, vetos);
     return kzero_veto;
 }
 
@@ -453,9 +463,9 @@ GooPdf *makeEfficiencyPoly() {
     if(!kzero_veto)
         makeKzeroVeto();
 
-    vector<Variable> offsets;
-    vector<Observable> observables;
-    vector<Variable> coefficients;
+    std::vector<Variable> offsets;
+    std::vector<Observable> observables;
+    std::vector<Variable> coefficients;
     offsets.push_back(constantOne);
     offsets.push_back(constantOne);
 
@@ -515,9 +525,11 @@ GooPdf *makeEfficiencyPoly() {
 
 DecayInfo3t dtop0pp{Variable("tau", 0.4101, 0.001, 0.300, 0.500),
                     Variable("xmixing", 0.0016, 0.001, 0, 0),
-                    Variable("ymixing", 0.0055, 0.001, 0, 0)};
+                    Variable("ymixing", 0.0055, 0.001, 0, 0),
+                    Variable("deltax", 0),
+                    Variable("deltay", 0)};
 
-TddpPdf *makeSignalPdf(MixingTimeResolution *resolution = 0, GooPdf *eff = 0) {
+Amp3Body_TD *makeSignalPdf(MixingTimeResolution *resolution = 0, GooPdf *eff = 0) {
     dtop0pp.motherMass   = _mD0;
     dtop0pp.daug1Mass    = piZeroMass;
     dtop0pp.daug2Mass    = piPlusMass;
@@ -718,15 +730,16 @@ TddpPdf *makeSignalPdf(MixingTimeResolution *resolution = 0, GooPdf *eff = 0) {
         dtop0pp.resonances.push_back(f0_600);
 
     if(!fitMasses) {
-        for(vector<ResonancePdf *>::iterator res = dtop0pp.resonances.begin(); res != dtop0pp.resonances.end(); ++res) {
+        for(std::vector<ResonancePdf *>::iterator res = dtop0pp.resonances.begin(); res != dtop0pp.resonances.end();
+            ++res) {
             (*res)->setParameterConstantness(true);
         }
     }
 
     if(!eff) {
-        vector<Variable> offsets;
-        vector<Observable> observables;
-        vector<Variable> coefficients;
+        std::vector<Variable> offsets;
+        std::vector<Observable> observables;
+        std::vector<Variable> coefficients;
 
         observables.push_back(*m12);
         observables.push_back(*m13);
@@ -757,7 +770,8 @@ TddpPdf *makeSignalPdf(MixingTimeResolution *resolution = 0, GooPdf *eff = 0) {
                                                       constantZero,
                                                       tailScaleFactor,
                                                       constantZero,
-                                                      constantOne);
+                                                      constantOne,
+                                                      constantZero);
                 resList.push_back(resolution);
             }
         } else {
@@ -784,7 +798,8 @@ TddpPdf *makeSignalPdf(MixingTimeResolution *resolution = 0, GooPdf *eff = 0) {
                                                       coreBias,
                                                       tailScaleFactor,
                                                       constantZero,
-                                                      constantOne);
+                                                      constantOne,
+                                                      constantZero);
             else {
                 coreBias.setValue(0);
                 coreScaleFactor.setValue(1);
@@ -796,25 +811,28 @@ TddpPdf *makeSignalPdf(MixingTimeResolution *resolution = 0, GooPdf *eff = 0) {
                                                       constantZero,
                                                       constantOne,
                                                       constantZero,
-                                                      constantOne);
+                                                      constantOne,
+                                                      constantZero);
             }
         }
     }
 
-    TddpPdf *mixPdf = 0;
+    Amp3Body_TD *mixPdf = 0;
 
     if(massd0)
-        mixPdf = new TddpPdf("mixPdf", *dtime, *sigma, *m12, *m13, *eventNumber, dtop0pp, resList, eff, *massd0, wBkg1);
+        mixPdf = new Amp3Body_TD(
+            "mixPdf", *dtime, *sigma, *m12, *m13, *eventNumber, dtop0pp, resList, eff, *massd0, mtag, d0tag);
     else
-        mixPdf = new TddpPdf("mixPdf", *dtime, *sigma, *m12, *m13, *eventNumber, dtop0pp, resolution, eff, wBkg1);
+        mixPdf = new Amp3Body_TD(
+            "mixPdf", *dtime, *sigma, *m12, *m13, *eventNumber, dtop0pp, resolution, eff, mtag, d0tag);
 
     return mixPdf;
 }
 
 GooPdf *makeFlatBkgDalitzPdf(bool fixem = true) {
-    vector<Variable> offsets;
-    vector<Observable> observables;
-    vector<Variable> coefficients;
+    std::vector<Variable> offsets;
+    std::vector<Observable> observables;
+    std::vector<Variable> coefficients;
     offsets.push_back(constantZero);
     offsets.push_back(constantZero);
     observables.push_back(*m12);
@@ -848,13 +866,15 @@ int runToyFit(int ifile, int nfile, bool noPlots = true) {
     // sigma = new Variable("sigma", 0, 0.8);
     sigma = new Observable("sigma", 0.099, 0.101);
     sigma->setNumBins(1);
-    // Cheating way to avoid Punzi effect for toy MC. The normalisation integral is now a delta function!
+    // Cheating way to avoid Punzi effect for toy MC. The normalization integral is now a delta function!
     m12 = new Observable("m12", 0, 3);
     m12->setNumBins(240);
     m13 = new Observable("m13", 0, 3);
     m13->setNumBins(240);
     eventNumber = new EventNumber("eventNumber", 0, INT_MAX);
     wSig0       = new Observable("wSig0", 0, 1);
+    mtag        = new Observable("mtag", 0, 1);
+    d0tag       = new Observable("d0tag", -1, 1);
 
     for(int i = 0; i < nfile; i++) {
         //      sprintf(strbuffer, "dataFiles/toyPipipi0/dalitz_toyMC_%03d.txt", (i+ifile)%100);
@@ -864,12 +884,12 @@ int runToyFit(int ifile, int nfile, bool noPlots = true) {
     }
 
     // TruthResolution* dat = new TruthResolution();
-    // TddpPdf* mixPdf = makeSignalPdf(dat);
+    // Amp3Body_TD* mixPdf = makeSignalPdf(dat);
     signalDalitz = makeSignalPdf();
-    signalDalitz->setDataSize(data->getNumEvents(), 6); // Default 5 is fine for toys
+    signalDalitz->setDataSize(data->getNumEvents(), 8); // Default 5 is fine for toys
     sig0_jsugg = new ExpPdf("sig0_jsugg", *sigma, constantZero);
     //  sig0_jsugg = makeBkg_sigma_strips(0);
-    sig0_jsugg->addSpecialMask(PdfBase::ForceSeparateNorm);
+    sig0_jsugg->setSeparateNorm();
     sig0_jsugg->setParameterConstantness(true);
     comps.clear();
     comps.push_back(signalDalitz);
@@ -904,9 +924,9 @@ int runToyFit(int ifile, int nfile, bool noPlots = true) {
     }
 
     fmt::print("Fit results Toy fit:\n"
-               "tau    : ({:.3}) fs\n"
-               "xmixing: ({:.3})\%\n"
-               "ymixing: ({:.3})\%\n",
+               "tau    : ({}) fs\n"
+               "xmixing: ({})\%\n"
+               "ymixing: ({})\%\n",
                1000 * Uncertain(dtop0pp._tau),
                100 * Uncertain(dtop0pp._xmixing),
                100 * Uncertain(dtop0pp._ymixing));
@@ -1041,7 +1061,7 @@ void loadDataFile(std::string fname, UnbinnedDataSet **setToFill, int effSkip) {
         integralWeights[4] += wBkg4->getValue();
         eventNumber->setValue((*setToFill)->getNumEvents());
 
-        // See comments in TddpPdf.hh for explanation of this.
+        // See comments in Amp3Body_TD.hh for explanation of this.
         double mistag = wSig0->getValue() + wBkg1->getValue() * luckyFrac;
         wSig0->setValue(wSig0->getValue() + wBkg1->getValue());
         wBkg1->setValue(mistag / wSig0->getValue());
@@ -1252,7 +1272,7 @@ const int numSigmaBins       = 36;
 TH1F **sigma_dat_hists       = 0;
 TH1F **sigma_pdf_hists       = 0;
 UnbinnedDataSet **sigma_data = 0;
-vector<GooPdf *> jsuList;
+std::vector<GooPdf *> jsuList;
 
 GooPdf *makeSigmaMap() {
     sigma_dat_hists = new TH1F *[numSigmaBins];
@@ -1293,7 +1313,7 @@ GooPdf *makeSigmaMap() {
         sigma_data[overallbin]->addEvent();
     }
 
-    // vector<GooPdf*> jsuList;
+    // std::vector<GooPdf*> jsuList;
     for(int i = 0; i < numSigmaBins; ++i) {
         GooPdf *js = makeSignalJSU_gg(i, false);
         jsuList.push_back(js);
@@ -1320,21 +1340,20 @@ GooPdf *makeSigmaMap() {
                 currpdf.fit();
             }
             js->setParameterConstantness(true);
-            // js->clearCurrentFit();
             std::cout << "Done with sigma box " << i << "\n";
         }
     }
 
-    vector<Observable> obses;
+    std::vector<Observable> obses;
     obses.push_back(*m12);
     obses.push_back(*m13);
-    vector<double> limits;
+    std::vector<double> limits;
     limits.push_back(0);
     limits.push_back(0);
-    vector<double> binSizes;
+    std::vector<double> binSizes;
     binSizes.push_back(0.5);
     binSizes.push_back(0.5);
-    vector<int> numBins;
+    std::vector<int> numBins;
     numBins.push_back(6);
     numBins.push_back(6);
     BinTransformPdf *mapFunction = new BinTransformPdf("mapFunction", obses, limits, binSizes, numBins);
@@ -1379,7 +1398,7 @@ GooPdf *make1BinSigmaMap() {
         sigma_data[overallbin]->addEvent();
     }
 
-    // vector<GooPdf*> jsuList;
+    // std::vector<GooPdf*> jsuList;
     for(int i = 0; i < 1; ++i) {
         GooPdf *js = makeSignalJSU_gg(i, false);
         jsuList.push_back(js);
@@ -1397,21 +1416,20 @@ GooPdf *make1BinSigmaMap() {
                 currpdf.fit();
             }
             js->setParameterConstantness(true);
-            // js->clearCurrentFit();
             std::cout << "Done with sigma box " << i << "\n";
         }
     }
 
-    vector<Observable> obses;
+    std::vector<Observable> obses;
     obses.push_back(*m12);
     obses.push_back(*m13);
-    vector<double> limits;
+    std::vector<double> limits;
     limits.push_back(0);
     limits.push_back(0);
-    vector<double> binSizes;
+    std::vector<double> binSizes;
     binSizes.push_back(3);
     binSizes.push_back(3);
-    vector<int> numBins;
+    std::vector<int> numBins;
     numBins.push_back(1);
     numBins.push_back(1);
     BinTransformPdf *mapFunction = new BinTransformPdf("mapFunction", obses, limits, binSizes, numBins);
@@ -1458,7 +1476,7 @@ GooPdf *make4BinSigmaMap() {
         sigma_data[overallbin]->addEvent();
     }
 
-    // vector<GooPdf*> jsuList;
+    // std::vector<GooPdf*> jsuList;
     for(int i = 0; i < 4; ++i) {
         GooPdf *js = makeSignalJSU_gg(i, false);
         jsuList.push_back(js);
@@ -1476,21 +1494,20 @@ GooPdf *make4BinSigmaMap() {
                 currpdf.fit();
             }
             js->setParameterConstantness(true);
-            // js->clearCurrentFit();
             std::cout << "Done with sigma box " << i << "\n";
         }
     }
 
-    vector<Observable> obses;
+    std::vector<Observable> obses;
     obses.push_back(*m12);
     obses.push_back(*m13);
-    vector<double> limits;
+    std::vector<double> limits;
     limits.push_back(0);
     limits.push_back(0);
-    vector<double> binSizes;
+    std::vector<double> binSizes;
     binSizes.push_back(1.5);
     binSizes.push_back(1.5);
-    vector<int> numBins;
+    std::vector<int> numBins;
     numBins.push_back(2);
     numBins.push_back(2);
     BinTransformPdf *mapFunction = new BinTransformPdf("mapFunction", obses, limits, binSizes, numBins);
@@ -1563,7 +1580,7 @@ ChisqInfo::ChisqInfo()
 ChisqInfo *getAdaptiveChisquare(TH2F *datPlot, TH2F *pdfPlot) {
     bool acceptable = false;
     int binSize     = 1;
-    vector<BigBin> binlist;
+    std::vector<BigBin> binlist;
     double limit = 26;
 
     while(!acceptable) {
@@ -1600,7 +1617,7 @@ ChisqInfo *getAdaptiveChisquare(TH2F *datPlot, TH2F *pdfPlot) {
 
         acceptable = true;
 
-        for(vector<BigBin>::iterator bin = binlist.begin(); bin != binlist.end(); ++bin) {
+        for(std::vector<BigBin>::iterator bin = binlist.begin(); bin != binlist.end(); ++bin) {
             if((*bin).getContent(datPlot) >= limit)
                 continue;
 
@@ -1618,9 +1635,9 @@ ChisqInfo *getAdaptiveChisquare(TH2F *datPlot, TH2F *pdfPlot) {
 
     while(0 < numSplits) {
         numSplits = 0;
-        vector<BigBin> newbins;
+        std::vector<BigBin> newbins;
 
-        for(vector<BigBin>::iterator bin = binlist.begin(); bin != binlist.end(); ++bin) {
+        for(std::vector<BigBin>::iterator bin = binlist.begin(); bin != binlist.end(); ++bin) {
             if(1 == (*bin).width * (*bin).height) {
                 newbins.push_back(*bin);
                 continue;
@@ -1675,7 +1692,7 @@ ChisqInfo *getAdaptiveChisquare(TH2F *datPlot, TH2F *pdfPlot) {
 
         binlist.clear();
 
-        for(vector<BigBin>::iterator i = newbins.begin(); i != newbins.end(); ++i)
+        for(std::vector<BigBin>::iterator i = newbins.begin(); i != newbins.end(); ++i)
             binlist.push_back(*i);
 
         std::cout << "Split " << numSplits << " bins.\n";
@@ -1695,10 +1712,10 @@ ChisqInfo *getAdaptiveChisquare(TH2F *datPlot, TH2F *pdfPlot) {
     double totalDat = 0;
     double totalPdf = 0;
 
-    for(vector<BigBin>::iterator bin = binlist.begin(); bin != binlist.end(); ++bin) {
+    for(std::vector<BigBin>::iterator bin = binlist.begin(); bin != binlist.end(); ++bin) {
         double dat  = (*bin).getContent(datPlot);
         double pdf  = (*bin).getContent(pdfPlot);
-        double term = (dat - pdf) / sqrt(dat);
+        double term = (dat - pdf) / std::sqrt(dat);
         ret->chisq += term * term;
 
         /*
@@ -1740,7 +1757,7 @@ ChisqInfo *getAdaptiveChisquare(TH2F *datPlot, TH2F *pdfPlot) {
 
 void makeToyDalitzPlots(GooPdf *overallSignal, std::string plotdir) {
     std::string call = "mkdir -p " + plotdir;
-    system(call.c_str());
+    std::system(call.c_str());
 
     foo->cd();
 
@@ -1786,9 +1803,13 @@ void makeToyDalitzPlots(GooPdf *overallSignal, std::string plotdir) {
     vars.push_back(*sigma);
     vars.push_back(*eventNumber);
     vars.push_back(*wSig0);
+    vars.push_back(*mtag);
+    vars.push_back(*d0tag);
     UnbinnedDataSet currData(vars);
     sigma->setValue(0.1);
     wSig0->setValue(totalSigProb / totalDat);
+    mtag->setValue(0);
+    d0tag->setValue(0);
     int evtCounter = 0;
 
     for(int i = 0; i < m12->getNumBins(); ++i) {
@@ -1815,7 +1836,7 @@ void makeToyDalitzPlots(GooPdf *overallSignal, std::string plotdir) {
     GOOFIT_INFO("Adding {} signal events from toy", currData.getNumEvents());
 
     overallSignal->setData(&currData);
-    signalDalitz->setDataSize(currData.getNumEvents(), 6);
+    signalDalitz->setDataSize(currData.getNumEvents(), 8);
     std::vector<std::vector<double>> pdfValues = overallSignal->getCompProbsAtDataPoints();
 
     for(unsigned int j = 0; j < pdfValues[0].size(); ++j) {
@@ -1849,7 +1870,7 @@ void makeToyDalitzPlots(GooPdf *overallSignal, std::string plotdir) {
 
 void makeDalitzPlots(GooPdf *overallSignal, std::string plotdir = "./plots_from_mixfit/") {
     std::string mkplotdir{"mkdir " + plotdir};
-    system(mkplotdir.c_str());
+    std::system(mkplotdir.c_str());
     foo->cd();
 
     TH1F dtime_dat_hist("dtime_dat_hist", "", dtime->getNumBins(), dtime->getLowerLimit(), dtime->getUpperLimit());
@@ -2327,7 +2348,7 @@ void makeDalitzPlots(GooPdf *overallSignal, std::string plotdir = "./plots_from_
     foodal->SetLogz(false);
 
     TH1F pull_pm_hist("pull_pm_hist", "", 100, -5, 5);
-    pull_pm_hist.GetXaxis()->SetTitle("(Data - PDF) / sqrt(Data)");
+    pull_pm_hist.GetXaxis()->SetTitle("(Data - PDF) / std::sqrt(Data)");
     pull_pm_hist.GetYaxis()->SetTitle("Bins / 0.1");
 
     for(int i = 1; i <= m12->getNumBins(); ++i) {
@@ -2366,7 +2387,7 @@ void makeDalitzPlots(GooPdf *overallSignal, std::string plotdir = "./plots_from_
             double dat = dalitzpm_dat_hist.GetBinContent(i, j);
             double pdf = dalitzpm_pdf_hist.GetBinContent(i, j);
 
-            double pullval = (dat - pdf) / sqrt(max(1.0, dat));
+            double pullval = (dat - pdf) / std::sqrt(std::max(1.0, dat));
             dalitzpm_dat_hist.SetBinContent(i, j, pullval);
             pull_pm_hist.Fill(pullval);
         }
@@ -2402,7 +2423,7 @@ void makeDalitzPlots(GooPdf *overallSignal, std::string plotdir = "./plots_from_
             double dat = dalitzp0_dat_hist.GetBinContent(i, j);
             double pdf = dalitzp0_pdf_hist.GetBinContent(i, j);
 
-            dalitzp0_dat_hist.SetBinContent(i, j, (dat - pdf) / sqrt(max(1.0, dat)));
+            dalitzp0_dat_hist.SetBinContent(i, j, (dat - pdf) / std::sqrt(std::max(1.0, dat)));
         }
 
         // NB, this exploits symmetry 12 and 13 by treating the outer loop as 13.
@@ -2436,7 +2457,7 @@ void makeDalitzPlots(GooPdf *overallSignal, std::string plotdir = "./plots_from_
             double dat = dalitzm0_dat_hist.GetBinContent(i, j);
             double pdf = dalitzm0_pdf_hist.GetBinContent(i, j);
 
-            dalitzm0_dat_hist.SetBinContent(i, j, (dat - pdf) / sqrt(max(1.0, dat)));
+            dalitzm0_dat_hist.SetBinContent(i, j, (dat - pdf) / std::sqrt(std::max(1.0, dat)));
         }
     }
 
@@ -2465,13 +2486,13 @@ GooPdf *make_m23_transform() {
     // Finally I need a transform from bin number to function. Keep the tongue straight
     // in the mouth, now!
 
-    vector<Observable> obses;
-    vector<Variable> offsets;
-    vector<Variable> coefficients;
-    vector<PdfBase *> components;
-    vector<double> limits;
-    vector<double> binSizes;
-    vector<int> numBins;
+    std::vector<Observable> obses;
+    std::vector<Variable> offsets;
+    std::vector<Variable> coefficients;
+    std::vector<PdfBase *> components;
+    std::vector<double> limits;
+    std::vector<double> binSizes;
+    std::vector<int> numBins;
 
     // First the transform to m23.
     // m23 = _mD02 + piZeroMass*piZeroMass + piPlusMass*piPlusMass + piPlusMass*piPlusMass - massPZ - massPM
@@ -2556,7 +2577,7 @@ GooPdf *makeSigmaHists() {
         sigmaHists[bin]->addEvent();
     }
 
-    vector<GooPdf *> jsuList;
+    std::vector<GooPdf *> jsuList;
 
     for(int i = 0; i < m23Slices; ++i) {
         sprintf(strbuffer, "signal_sigma_hist_%i", i);
@@ -2570,8 +2591,8 @@ GooPdf *makeSigmaHists() {
 GooPdf *makeBkg_sigma_strips(int bkgnum) {
     GooPdf *m23_composite = make_m23_transform();
 
-    vector<GooPdf *> jsuList;
-    vector<ConvolutionPdf *> convList;
+    std::vector<GooPdf *> jsuList;
+    std::vector<ConvolutionPdf *> convList;
     bool useShare = false;
 
     for(int i = 0; i < m23Slices; ++i) {
@@ -2588,7 +2609,7 @@ GooPdf *makeBkg_sigma_strips(int bkgnum) {
     }
 
     if(useShare) {
-        for(vector<ConvolutionPdf *>::iterator conv = convList.begin(); conv != convList.end(); ++conv) {
+        for(std::vector<ConvolutionPdf *>::iterator conv = convList.begin(); conv != convList.end(); ++conv) {
             (*conv)->registerOthers(convList);
         }
     }
@@ -2657,7 +2678,7 @@ GooPdf *makeOverallSignal() {
     // Too fine a binning here leads to bad results due to fluctuations.
     m12->setNumBins(120);
     m13->setNumBins(120);
-    vector<Observable> lvars;
+    std::vector<Observable> lvars;
     lvars.push_back(*m12);
     lvars.push_back(*m13);
     binEffData = new BinnedDataSet(lvars);
@@ -2667,7 +2688,7 @@ GooPdf *makeOverallSignal() {
     loadDataFile(fname, &effdata);
 
     if(saveEffPlot) {
-        system("mkdir plots_from_mixfit");
+        std::system("mkdir plots_from_mixfit");
         foodal->cd();
         underlyingBins->Draw("colz");
         foodal->SaveAs("plots_from_mixfit/efficiency_bins.png");
@@ -2723,7 +2744,7 @@ GooPdf *makeOverallSignal() {
     else
         sig0_jsugg = makeBkg_sigma_strips(0);
 
-    sig0_jsugg->addSpecialMask(PdfBase::ForceSeparateNorm);
+    sig0_jsugg->setSeparateNorm();
     // sig0_jsugg = makeSignalJSU_gg(-1, false);
 
     /*
@@ -2773,9 +2794,9 @@ int runTruthMCFit(std::string fname, bool noPlots = true) {
     // overallSignal->setDebugMask(0);
 
     fmt::print("Fit results Toy fit TruthMC fit:\n"
-               "tau    : {:.3}\n"
-               "xmixing: ({:.3})\%\n"
-               "ymixing: ({:.3})\%\n",
+               "tau    : {}\n"
+               "xmixing: ({})\%\n"
+               "ymixing: ({})\%\n",
                Uncertain(dtop0pp._tau),
                100 * Uncertain(dtop0pp._xmixing),
                100 * Uncertain(dtop0pp._ymixing));
@@ -2834,7 +2855,7 @@ int runGeneratedMCFit(std::string fname, int genResolutions, double dplotres) {
         smearedData = data;
 
     /*
-    vector<Variable*> lvars;
+    std::vector<Variable*> lvars;
     lvars.push_back(m12);
     lvars.push_back(m13);
     binEffData = new BinnedDataSet(lvars);
@@ -2909,7 +2930,7 @@ int runGeneratedMCFit(std::string fname, int genResolutions, double dplotres) {
     weightHistogram->Draw("colz");
     foodal->SaveAs("./plots_from_mixfit/efficiency_weights.png");
 
-    vector<Observable> lvars;
+    std::vector<Observable> lvars;
     lvars.push_back(*m12);
     lvars.push_back(*m13);
     binEffData = new BinnedDataSet(lvars);
@@ -2974,9 +2995,9 @@ int runGeneratedMCFit(std::string fname, int genResolutions, double dplotres) {
     }
 
     fmt::print("Fit results Canonical fit:\n"
-               "tau    : {:.3}\n"
-               "xmixing: ({:.3})\%\n"
-               "ymixing: ({:.3})\%\n",
+               "tau    : {}\n"
+               "xmixing: ({})\%\n"
+               "ymixing: ({})\%\n",
                Uncertain(dtop0pp._tau),
                100 * Uncertain(dtop0pp._xmixing),
                100 * Uncertain(dtop0pp._ymixing));
@@ -3007,7 +3028,7 @@ int runGeneratedMCFit(std::string fname, int genResolutions, double dplotres) {
 
     std::string ident = fname.substr(pos, 4);
     sprintf(strbuffer, "result_%s_%f", ident.c_str(), dplotres);
-    ofstream writer;
+    std::ofstream writer;
     writer.open(strbuffer);
     writer << inputx << " " << 100 * dtop0pp._xmixing.getValue() << " " << 100 * dtop0pp._xmixing.getError() << " "
            << inputy << " " << 100 * dtop0pp._ymixing.getValue() << " " << 100 * dtop0pp._ymixing.getError()
@@ -3282,9 +3303,9 @@ GooPdf *makeBkg2DalitzPdf(bool fixem = true) {
     if(Parameter == bkg2Model) {
         comps.clear();
 
-        vector<Variable> offsets;
-        vector<Observable> observables;
-        vector<Variable> coefficients;
+        std::vector<Variable> offsets;
+        std::vector<Observable> observables;
+        std::vector<Variable> coefficients;
         offsets.push_back(constantOne);
         offsets.push_back(constantOne);
         observables.push_back(*m12);
@@ -3323,7 +3344,7 @@ GooPdf *makeBkg2DalitzPdf(bool fixem = true) {
         comps.push_back(poly);
         comps.push_back(bkg2_loZ);
         comps.push_back(kzero_veto);
-        // Separate PDF to avoid triggering numerical normalisation over all four observables.
+        // Separate PDF to avoid triggering numerical normalization over all four observables.
         ProdPdf *poly_x_veto = new ProdPdf("poly_x_veto", comps);
         // poly_x_veto->setDebugMask(1);
 
@@ -3358,7 +3379,7 @@ GooPdf *makeBkg2DalitzPdf(bool fixem = true) {
         comps.push_back(bkg2_rho_poly);
         comps.push_back(bkg2_loZ);
         ProdPdf *bkg2_rho_mods = new ProdPdf("bkg2_rho_mods", comps);
-        incsum1 = new IncoherentSumPdf("incsum1", *m12, *m13, *eventNumber, special_rho_decay, bkg2_rho_mods);
+        incsum1                = new Amp3Body_IS("incsum1", *m12, *m13, *eventNumber, special_rho_decay, bkg2_rho_mods);
 
         // Three spin-0 rho resonances to be added incoherently.
         DecayInfo3 incoherent_rho0s;
@@ -3403,7 +3424,7 @@ GooPdf *makeBkg2DalitzPdf(bool fixem = true) {
         comps.push_back(bkg2_loZ);
         ProdPdf *bkg2_rho_mods2 = new ProdPdf("bkg2_rho_mods2", comps);
 
-        incsum2 = new IncoherentSumPdf("incsum2", *m12, *m13, *eventNumber, incoherent_rho0s, bkg2_rho_mods2);
+        incsum2 = new Amp3Body_IS("incsum2", *m12, *m13, *eventNumber, incoherent_rho0s, bkg2_rho_mods2);
 
         weights.clear();
         weights.push_back(constantOne);
@@ -3415,7 +3436,7 @@ GooPdf *makeBkg2DalitzPdf(bool fixem = true) {
         comps.push_back(incsum2);
 
         bkg2_dalitz = new AddPdf("bkg2_dalitz", weights, comps);
-        bkg2_dalitz->addSpecialMask(PdfBase::ForceCommonNorm);
+        bkg2_dalitz->setCommonNorm();
         // bkg2_dalitz->setDebugMask(1);
 
     } else if(Histogram == bkg2Model) {
@@ -3453,7 +3474,7 @@ GooPdf *makeBkg2DalitzPdf(bool fixem = true) {
     // Separate sigma_t distribution
     // bkg2_jsugg = makeBkg2_sigma();
     bkg2_jsugg = makeBkg_sigma_strips(2);
-    bkg2_jsugg->addSpecialMask(PdfBase::ForceSeparateNorm);
+    bkg2_jsugg->setSeparateNorm();
 
     // Finally create overall product.
     comps.clear();
@@ -3589,7 +3610,7 @@ SmoothHistogramPdf *makeBackgroundHistogram(int bkgnum, std::string overridename
             double newEvents = -1;
 
             while(0 > newEvents)
-                newEvents = donram.Gaus(events, sqrt(events));
+                newEvents = donram.Gaus(events, std::sqrt(events));
 
             bkg_binned_data->setBinContent(bin, newEvents);
         }
@@ -3607,9 +3628,9 @@ GooPdf *makeBackground3DalitzParam() {
     // GooPdf* bkg3_eff = makeBkg3Eff();
     weights.clear();
 
-    vector<Variable> offsets;
-    vector<Observable> observables;
-    vector<Variable> coefficients;
+    std::vector<Variable> offsets;
+    std::vector<Observable> observables;
+    std::vector<Variable> coefficients;
     offsets.push_back(constantOne);
     offsets.push_back(constantOne);
 
@@ -3716,7 +3737,7 @@ GooPdf *makeBackground3DalitzParam() {
     // comps.push_back(bkg3_eff);
     // comps.push_back(bkg3_loZ);
     // ProdPdf* bkg3_pi0_mods = new ProdPdf("bkg3_pi0_mods", comps);
-    // incsum3 = new IncoherentSumPdf("incsum3", m12, m13, eventNumber, special_pi0_decay, bkg3_pi0_mods);
+    // incsum3 = new Amp3Body_IS("incsum3", m12, m13, eventNumber, special_pi0_decay, bkg3_pi0_mods);
 
     // Three spin-1 rho resonances to be added incoherently.
     DecayInfo3 incoherent_rhos;
@@ -3762,8 +3783,8 @@ GooPdf *makeBackground3DalitzParam() {
     // comps.push_back(bkg3_eff);
     // ProdPdf* bkg3_rho_mods = new ProdPdf("bkg3_rho_mods", comps);
 
-    // incsum4 = new IncoherentSumPdf("incsum4", m12, m13, eventNumber, incoherent_rhos, bkg3_rho_mods);
-    // incsum4 = new IncoherentSumPdf("incsum4", m12, m13, eventNumber, incoherent_rhos, kzero_veto);
+    // incsum4 = new Amp3Body_IS("incsum4", m12, m13, eventNumber, incoherent_rhos, bkg3_rho_mods);
+    // incsum4 = new Amp3Body_IS("incsum4", m12, m13, eventNumber, incoherent_rhos, kzero_veto);
 
     weights.clear();
     weights.push_back(constantOne);
@@ -3775,14 +3796,14 @@ GooPdf *makeBackground3DalitzParam() {
     // comps.push_back(incsum4);
 
     AddPdf *bkg3_dalitz = new AddPdf("bkg3_dalitz", weights, comps);
-    bkg3_dalitz->addSpecialMask(PdfBase::ForceCommonNorm);
+    bkg3_dalitz->setCommonNorm();
     return bkg3_dalitz;
 }
 
 GooPdf *makeBackground4DalitzParam() {
-    vector<Variable> offsets;
-    vector<Observable> observables;
-    vector<Variable> coefficients;
+    std::vector<Variable> offsets;
+    std::vector<Observable> observables;
+    std::vector<Variable> coefficients;
     offsets.push_back(constantOne);
     offsets.push_back(constantOne);
 
@@ -3824,7 +3845,7 @@ GooPdf *makeBackground4DalitzParam() {
     comps.push_back(poly);
     comps.push_back(bkg4_loZ);
     comps.push_back(kzero_veto);
-    // Separate PDF to avoid triggering numerical normalisation over all four observables.
+    // Separate PDF to avoid triggering numerical normalization over all four observables.
     ProdPdf *poly_x_veto = new ProdPdf("poly_x_veto", comps);
 
     // One pipi bump.
@@ -3877,7 +3898,7 @@ GooPdf *makeBackground4DalitzParam() {
     comps.push_back(bkg4_pipi_transZ_total);
 
     ProdPdf *bkg4_pipi_mods = new ProdPdf("bkg4_pipi_mods", comps);
-    incsum5 = new IncoherentSumPdf("incsum5", *m12, *m13, *eventNumber, special_pipi_decay, bkg4_pipi_mods);
+    incsum5                 = new Amp3Body_IS("incsum5", *m12, *m13, *eventNumber, special_pipi_decay, bkg4_pipi_mods);
 
     // Three spin-0 rho resonances to be added incoherently.
     DecayInfo3 incoherent_rho0s;
@@ -3918,8 +3939,8 @@ GooPdf *makeBackground4DalitzParam() {
     comps.push_back(kzero_veto);
     comps.push_back(bkg4_loZ);
     ProdPdf *bkg4_incrho_mods = new ProdPdf("bkg4_incrho_mods", comps);
-    incsum6 = new IncoherentSumPdf("incsum6", *m12, *m13, *eventNumber, incoherent_rho0s, bkg4_incrho_mods);
-    // incsum6 = new IncoherentSumPdf("incsum6", m12, m13, eventNumber, incoherent_rho0s, kzero_veto);
+    incsum6 = new Amp3Body_IS("incsum6", *m12, *m13, *eventNumber, incoherent_rho0s, bkg4_incrho_mods);
+    // incsum6 = new Amp3Body_IS("incsum6", m12, m13, eventNumber, incoherent_rho0s, kzero_veto);
 
     weights.clear();
     weights.push_back(constantOne);
@@ -3931,7 +3952,7 @@ GooPdf *makeBackground4DalitzParam() {
     comps.push_back(incsum6);
 
     AddPdf *bkg4_dalitz = new AddPdf("bkg4_dalitz", weights, comps);
-    bkg4_dalitz->addSpecialMask(PdfBase::ForceCommonNorm);
+    bkg4_dalitz->setCommonNorm();
     return bkg4_dalitz;
 }
 
@@ -3968,7 +3989,7 @@ GooPdf *makeBkg3DalitzPdf(bool fixem = true) {
     // bkg3_jsugg = makeBkg3_sigma();
     // bkg3_jsugg = sig0_jsugg; // Mikhail uses same sigma distribution for everything.
     bkg3_jsugg = makeBkg_sigma_strips(3);
-    bkg3_jsugg->addSpecialMask(PdfBase::ForceSeparateNorm);
+    bkg3_jsugg->setSeparateNorm();
     // Otherwise ProdPdf tries to use the default overall integration,
     // because bkg3_jsugg depends on m12, m13 due to the striping, and that has
     // disastrous results for bkg3_dalitz. Note that this doesn't, actually,
@@ -4018,7 +4039,7 @@ GooPdf *makeBkg4DalitzPdf(bool fixem = true) {
     // bkg4_jsugg = makeBkg4_sigma();
     // bkg4_jsugg = sig0_jsugg; // Mikhail uses same sigma distribution for everything.
     bkg4_jsugg = makeBkg_sigma_strips(4);
-    bkg4_jsugg->addSpecialMask(PdfBase::ForceSeparateNorm); // See comments to bkg3_jsugg.
+    bkg4_jsugg->setSeparateNorm(); // See comments to bkg3_jsugg.
 
     comps.clear();
     comps.push_back(bkg4_dalitz);
@@ -4149,14 +4170,10 @@ int runCanonicalFit(std::string fname, bool noPlots = true) {
         retval = datapdf;
     }
 
-#ifdef PROFILING
-    overallPdf->printProfileInfo();
-#endif
-
     fmt::print("Fit results Canonical fit:\n"
-               "tau    : ({:.3}) fs\n"
-               "xmixing: ({:.3})\%\n"
-               "ymixing: ({:.3})\%\n",
+               "tau    : ({}) fs\n"
+               "xmixing: ({})\%\n"
+               "ymixing: ({})\%\n",
                1000 * Uncertain(dtop0pp._tau),
                100 * Uncertain(dtop0pp._xmixing),
                100 * Uncertain(dtop0pp._ymixing));
@@ -4370,7 +4387,7 @@ int runEfficiencyFit(int which) {
         m13->setNumBins(m13->getNumBins() / 8);
     }
 
-    vector<Observable *> lvars;
+    std::vector<Observable *> lvars;
     lvars.push_back(m12);
     lvars.push_back(m13);
     // binEffData = new BinnedDataSet(lvars);
@@ -4555,7 +4572,7 @@ int runEfficiencyFit(int which) {
             double dat = dalitz_dat_hist.GetBinContent(i, j);
             double pdf = dalitz_pdf_hist.GetBinContent(i, j);
 
-            double pull = (dat - pdf) / sqrt(max(1.0, dat));
+            double pull = (dat - pdf) / std::sqrt(std::max(1.0, dat));
             // if (fabs(pull) > 5) continue;
             dalitz_dat_hist.SetBinContent(i, j, pull);
             pullplot.Fill(pull);
@@ -4879,23 +4896,23 @@ void set_bkg_model_from_string() {
 }
 
 void parseArg(GooFit::App *app) {
-    app->add_option("--luckyFrac", luckyFrac, "", true);
-    app->add_option("--mesonRad", mesonRad, "", true);
-    app->add_option("--normBins", normBinning, "", true);
-    app->add_option("--blindSeed", blindSeed, "", true);
-    app->add_option("--mdslices", mdslices, "", true);
-    app->add_option("--offset", md0offset, "Offest in GeV", true);
+    app->add_option("--luckyFrac", luckyFrac);
+    app->add_option("--mesonRad", mesonRad);
+    app->add_option("--normBins", normBinning);
+    app->add_option("--blindSeed", blindSeed);
+    app->add_option("--mdslices", mdslices);
+    app->add_option("--offset", md0offset, "Offset in GeV");
     // Previously in MeV
-    app->add_option("--upper_window", md0_upper_window, "", true);
-    app->add_option("--lower_window", md0_lower_window, "", true);
-    app->add_option("--upper_delta_window", deltam_upper_window, "", true);
-    app->add_option("--lower_delta_window", deltam_lower_window, "", true);
-    app->add_option("--upperTime", upperTime, "", true);
-    app->add_option("--lowerTime", lowerTime, "", true);
-    app->add_option("--maxSigma", maxSigma, "", true);
-    app->add_option("--polyEff", polyEff, "", true);
-    app->add_option("--m23Slices", m23Slices, "", true);
-    app->add_option("--bkgRandSeed", bkgHistRandSeed, "", true);
+    app->add_option("--upper_window", md0_upper_window);
+    app->add_option("--lower_window", md0_lower_window);
+    app->add_option("--upper_delta_window", deltam_upper_window);
+    app->add_option("--lower_delta_window", deltam_lower_window);
+    app->add_option("--upperTime", upperTime);
+    app->add_option("--lowerTime", lowerTime);
+    app->add_option("--maxSigma", maxSigma);
+    app->add_option("--polyEff", polyEff);
+    app->add_option("--m23Slices", m23Slices);
+    app->add_option("--bkgRandSeed", bkgHistRandSeed);
 
     app->add_flag("--drop-rho_1450", drop_rho_1450);
     app->add_flag("--drop-rho_1700", drop_rho_1700);
@@ -4908,12 +4925,12 @@ void parseArg(GooFit::App *app) {
 
     app->add_flag("--histSigma", useHistogramSigma);
     app->add_flag("--makePlots", makePlots);
-    app->add_set("--mkg2Model", bkg2Model_str, {"histogram", "parameter", "sideband"}, "", true);
+    app->add_option("--mkg2Model", bkg2Model_str)->check(CLI::IsMember({"histogram", "parameter", "sideband"}));
     app->add_flag("--bkg3Hist", notUseBackground3Hist);
     app->add_flag("--bkg4Hist", notUseBackground4Hist);
-    app->add_option("--bkgHistBins", bkgHistBins, "", true);
-    app->add_option("--varyParameterUp", paramUp, "", true);
-    app->add_option("--varyParameterDn", paramDn, "", true);
+    app->add_option("--bkgHistBins", bkgHistBins);
+    app->add_option("--varyParameterUp", paramUp);
+    app->add_option("--varyParameterDn", paramDn);
     app->add_flag("--mikhail", mikhailSetup);
 }
 
@@ -4937,6 +4954,7 @@ int main(int argc, char **argv) {
     int retval = 0;
 
     GooFit::Application app("pipipi0 Dalitz fit example", argc, argv);
+    app.option_defaults()->always_capture_default();
     app_ptr = &app;
     app.require_subcommand();
 
@@ -4950,54 +4968,54 @@ int main(int argc, char **argv) {
     double dplotres    = 0;
 
     auto toy = app.add_subcommand("toy", "Toy MC Performance evaluation");
-    toy->add_option("-s,--sample,sample", sample, "Sample number to use", true);
-    toy->add_option("-l,--load,load", load, "Number of times to load", true);
-    toy->add_option("-m,--max", maxEvents, "Maximum number of events to read", true);
+    toy->add_option("-s,--sample,sample", sample, "Sample number to use");
+    toy->add_option("-l,--load,load", load, "Number of times to load");
+    toy->add_option("-m,--max", maxEvents, "Maximum number of events to read");
     toy->add_flag("-p,--plot", plots, "Also make plots");
-    toy->set_callback([&]() { retval = runToyFit(sample, load, plots); });
+    toy->callback([&]() { retval = runToyFit(sample, load, plots); });
 
     auto truth_fit = app.add_subcommand("truth", "Truth Monte Carlo fit");
     truth_fit->add_option("-d,--data,data", data, "Data to use")->required()->check(GooFit::ExistingFile);
-    truth_fit->set_callback([&]() { retval = runTruthMCFit(data, false); });
+    truth_fit->callback([&]() { retval = runTruthMCFit(data, false); });
 
     auto sigma_fit = app.add_subcommand("sigma", "Run sigma fit");
     sigma_fit->add_option("-d,--data,data", data, "Data to use")->required()->check(GooFit::ExistingFile);
     sigma_fit->add_option("-s,--slices,slices", m23Slices, "m23 slices")->required();
-    sigma_fit->set_callback([&]() { retval = runSigmaFit(data.c_str()); });
+    sigma_fit->callback([&]() { retval = runSigmaFit(data.c_str()); });
 
     auto efficiency_fit = app.add_subcommand("efficiency", "Run efficiency fit");
-    efficiency_fit->add_option("-s,--sample,sample", sample, "Sample number to use", true);
-    efficiency_fit->set_callback([&]() { retval = runEfficiencyFit(sample); });
+    efficiency_fit->add_option("-s,--sample,sample", sample, "Sample number to use");
+    efficiency_fit->callback([&]() { retval = runEfficiencyFit(sample); });
 
     auto canonical_fit = app.add_subcommand("canonical", "Run the canonical fit");
     canonical_fit->add_option("-d,--data,data", data, "Data to use")->required()->check(GooFit::ExistingFile);
     parseArg(canonical_fit);
-    canonical_fit->set_callback([&]() {
+    canonical_fit->callback([&]() {
         set_bkg_model_from_string();
         retval = runCanonicalFit(data, !makePlots);
     });
 
     auto background_dalitz_fit = app.add_subcommand("background_dalitz", "Run the background Dalitz fit");
-    background_dalitz_fit->add_option("-s,--sample,sample", sample, "Sample number to use", true);
+    background_dalitz_fit->add_option("-s,--sample,sample", sample, "Sample number to use");
     parseArg(background_dalitz_fit);
-    background_dalitz_fit->set_callback([&]() {
+    background_dalitz_fit->callback([&]() {
         set_bkg_model_from_string();
         retval = runBackgroundDalitzFit(sample, true);
     });
 
     auto background_sigma_fit = app.add_subcommand("background_sigma", "Run background sigma fit");
-    background_sigma_fit->add_option("-s,--sample,sample", sample, "Sample number to use", true);
-    background_sigma_fit->set_callback([&]() { retval = runBackgroundSigmaFit(sample); });
+    background_sigma_fit->add_option("-s,--sample,sample", sample, "Sample number to use");
+    background_sigma_fit->callback([&]() { retval = runBackgroundSigmaFit(sample); });
 
     auto write_background_histograms = app.add_subcommand("background_histograms", "Write background histograms");
-    write_background_histograms->add_option("-s,--sample,sample", sample, "Sample number to use", true);
-    write_background_histograms->set_callback([&]() { writeBackgroundHistograms(sample); });
+    write_background_histograms->add_option("-s,--sample,sample", sample, "Sample number to use");
+    write_background_histograms->callback([&]() { writeBackgroundHistograms(sample); });
 
     auto run_gen_mc_fit = app.add_subcommand("run_gen_mc", "Run generated Monte Carlo fit");
     run_gen_mc_fit->add_option("-d,--data,data", data, "Data to use")->required()->check(GooFit::ExistingFile);
     run_gen_mc_fit->add_option("-g,--genres,gen-resolutions", genResolutions)->required();
     run_gen_mc_fit->add_option("-p,--dplotres,dplotres", dplotres);
-    run_gen_mc_fit->set_callback([&]() {
+    run_gen_mc_fit->callback([&]() {
         if(!(DplotRes & genResolutions))
             dplotres = 0;
         retval = runGeneratedMCFit(data, genResolutions, dplotres);
@@ -5005,7 +5023,7 @@ int main(int argc, char **argv) {
 
     auto make_time_plots = app.add_subcommand("make_time_plots", "Make time plots");
     make_time_plots->add_option("-d,--data,data", data, "Data to use")->required()->check(GooFit::ExistingFile);
-    make_time_plots->set_callback([&]() { makeTimePlots(data); });
+    make_time_plots->callback([&]() { makeTimePlots(data); });
 
     GOOFIT_PARSE(app);
 

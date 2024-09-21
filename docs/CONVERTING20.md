@@ -4,7 +4,7 @@
 ## Build system
 
 The build system underwent a major upgrade in the move to CMake.  You should remove your old Makefiles and use the new `CMakeFiles.txt` files provided in examples - this should require
-writing two lines of code instead of the 50 or so previously needed. 
+writing two lines of code instead of the 50 or so previously needed.
 
 An example of a `CMakeLists.txt` file:
 
@@ -39,7 +39,7 @@ The new `GooFit::Application`, which is not required but provides GooFit options
 #include "goofit/Application.h"
 
 // Place this at the beginning of main
-GooFit::Application app{"Optional discription", argc, argv};
+GooFit::Application app{"Optional description", argc, argv};
 
 // Command line options can be added here.
 

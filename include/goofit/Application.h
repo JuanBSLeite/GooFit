@@ -32,17 +32,22 @@ using CLI::ParseError;
 using CLI::Success;
 
 /// Optional print for splash
-/// Orignal: Slant Relief from http://patorjk.com/software/taag/#p=testall&f=Wavy&t=GooFit (tightened a bit)
+/// Original: Slant Relief from http://patorjk.com/software/taag/#p=testall&f=Wavy&t=GooFit (tightened a bit)
 /// New: Block letters
 void print_splash();
 
 /// Print out information about GooFit
 void print_goofit_info(int gpuDev_ = 0);
 
+/// Get the version of GooFit as a string
+auto goofit_info_version() -> std::string;
+
+/// Get the device information
+auto goofit_info_device(int gpuDev_) -> std::string;
+
 class Application : public CLI::App {
   protected:
     int gpuDev_ = 0;
-    bool show_gpus_;
     bool quiet_;
     bool splash_;
     int argc_;
@@ -53,34 +58,38 @@ class Application : public CLI::App {
 
   public:
     /// Make a new Application
-    Application(std::string discription, int argc, char **argv);
+    Application(std::string description, int argc, char **argv);
 
     /// Shortcut for the lazy
     Application(int argc, char **argv)
         : Application("", argc, argv) {}
 
     /// Get the set GPU device
-    int get_device() const { return gpuDev_; }
+    auto get_device() const -> int { return gpuDev_; }
 
     int get_localRank() const {return localRank_;}
     /// simple run since argc and argv are stored
-    void run() { parse(argc_, argv_); }
+    void run();
 
     /// Gets called in parse
     void pre_callback() override;
 
     /// Exit
-    int exit(const CLI::Error &e);
+    auto exit(const CLI::Error &e) -> int;
 
     /// Call if the application might fork, otherwise automatic
     /// For example, if explicitly using omp
     void set_device() const;
+
+    /// Set floating point errors to throw exceptions instead of NaNs
+    /// Does not work with CUDA mode.
+    static void set_floating_exceptions();
 
     /// Cleanup MPI if needed
     ~Application() override;
 
     /// Get a file from the current directory, looks up one and in the true current directory
     /// Base gives a relative path from the source directory
-    std::string get_filename(const std::string &input_str, std::string base = "") const;
+    auto get_filename(const std::string &input_str, std::string base = "") const -> std::string;
 };
 } // namespace GooFit

@@ -12,7 +12,6 @@
 
 #include <thrust/count.h>
 
-using namespace std;
 using namespace GooFit;
 
 // Constants used in more than one PDF component.
@@ -48,36 +47,36 @@ int main(int argc, char **argv) {
 
     // Spin factors: we have two due to the bose symmetrization of the two pi+
     std::vector<SpinFactor *> SFKRS;
-    SFKRS.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_S, 0, 1, 2, 3));
-    SFKRS.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_S, 3, 1, 2, 0));
+    SFKRS.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_S, _mD0, 0, 1, 2, 3));
+    SFKRS.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_S, _mD0, 3, 1, 2, 0));
 
     std::vector<SpinFactor *> SFKRP;
-    SFKRP.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_P, 0, 1, 2, 3));
-    SFKRP.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_P, 3, 1, 2, 0));
+    SFKRP.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_P, _mD0, 0, 1, 2, 3));
+    SFKRP.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_P, _mD0, 3, 1, 2, 0));
 
     std::vector<SpinFactor *> SFKRD;
-    SFKRD.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_D, 0, 1, 2, 3));
-    SFKRD.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_D, 3, 1, 2, 0));
+    SFKRD.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_D, _mD0, 0, 1, 2, 3));
+    SFKRD.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_D, _mD0, 3, 1, 2, 0));
 
     std::vector<SpinFactor *> SFKF;
-    SFKF.push_back(new SpinFactor("SF", SF_4Body::DtoVS_VtoP1P2_StoP3P4, 2, 3, 0, 1));
-    SFKF.push_back(new SpinFactor("SF", SF_4Body::DtoVS_VtoP1P2_StoP3P4, 2, 0, 3, 1));
+    SFKF.push_back(new SpinFactor("SF", SF_4Body::DtoVS_VtoP1P2_StoP3P4, _mD0, 2, 3, 0, 1));
+    SFKF.push_back(new SpinFactor("SF", SF_4Body::DtoVS_VtoP1P2_StoP3P4, _mD0, 2, 0, 3, 1));
 
     std::vector<SpinFactor *> SFKK;
-    SFKK.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoSP2_StoP3P4, 0, 1, 3, 2));
-    SFKK.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoSP2_StoP3P4, 3, 1, 0, 2));
+    SFKK.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoSP2_StoP3P4, _mD0, 0, 1, 3, 2));
+    SFKK.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoSP2_StoP3P4, _mD0, 3, 1, 0, 2));
 
     std::vector<SpinFactor *> SFK1R;
-    SFK1R.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, 3, 2, 0, 1));
-    SFK1R.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, 0, 2, 3, 1));
+    SFK1R.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, _mD0, 3, 2, 0, 1));
+    SFK1R.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, _mD0, 0, 2, 3, 1));
 
     std::vector<SpinFactor *> SFA1R;
-    SFA1R.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, 2, 3, 0, 1));
-    SFA1R.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, 2, 0, 3, 1));
+    SFA1R.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, _mD0, 2, 3, 0, 1));
+    SFA1R.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, _mD0, 2, 0, 3, 1));
 
     std::vector<SpinFactor *> SFA1RD;
-    SFA1RD.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2Dwave_VtoP3P4, 2, 3, 0, 1));
-    SFA1RD.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2Dwave_VtoP3P4, 2, 0, 3, 1));
+    SFA1RD.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2Dwave_VtoP3P4, _mD0, 2, 3, 0, 1));
+    SFA1RD.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2Dwave_VtoP3P4, _mD0, 2, 0, 3, 1));
 
     // Lineshapes, also for both pi+ configurations
     std::vector<Lineshape *> LSKRS;
@@ -168,9 +167,9 @@ int main(int argc, char **argv) {
     Variable constantOne("constantOne", 1);
     Variable constantZero("constantZero", 0);
 
-    vector<Observable> observables;
-    vector<Variable> coefficients;
-    vector<Variable> offsets;
+    std::vector<Observable> observables;
+    std::vector<Variable> coefficients;
+    std::vector<Variable> offsets;
 
     observables.push_back(m12);
     observables.push_back(m34);
@@ -182,18 +181,18 @@ int main(int argc, char **argv) {
     offsets.push_back(constantZero);
     coefficients.push_back(constantOne);
 
-    PolynomialPdf *eff = new PolynomialPdf("constantEff", observables, coefficients, offsets, 0);
-    DPPdf *dp          = new DPPdf("test", observables, DK3P_DI, eff, 5);
+    PolynomialPdf eff("constantEff", observables, coefficients, offsets, 0);
+    auto dp = new DPPdf("test", observables, DK3P_DI, &eff, 5);
 
-    TFile *file = new TFile("SigGen.root", "RECREATE");
-    TTree *tree = new TTree("events", "events");
+    TFile file("SigGen.root", "RECREATE");
+    TTree tree("events", "events");
 
     double tm12, tm34, tc12, tc34, tphi;
-    tree->Branch("m12", &tm12, "m12/D");
-    tree->Branch("m34", &tm34, "m34/D");
-    tree->Branch("c12", &tc12, "c12/D");
-    tree->Branch("c34", &tc34, "c34/D");
-    tree->Branch("phi", &tphi, "phi/D");
+    tree.Branch("m12", &tm12, "m12/D");
+    tree.Branch("m34", &tm34, "m34/D");
+    tree.Branch("c12", &tc12, "c12/D");
+    tree.Branch("c34", &tc34, "c34/D");
+    tree.Branch("phi", &tphi, "phi/D");
 
     for(int k = 0; k < 4; ++k) {
         int numEvents = 1e6;
@@ -210,14 +209,12 @@ int main(int argc, char **argv) {
 
         for(int i = 0; i < weights.size(); ++i) {
             if(flags[i] == 1) {
-                // printf("%.5g %.5g %.5g %.5g %.5g %.5g %.5g\n", (*(variables[0]))[i], (*(variables[1]))[i],
-                // (*(variables[2]))[i], (*(variables[3]))[i], (*(variables[4]))[i], weights[i], flags[i]);
                 tm12 = (*(variables[0]))[i];
                 tm34 = (*(variables[1]))[i];
                 tc12 = (*(variables[2]))[i];
                 tc34 = (*(variables[3]))[i];
                 tphi = (*(variables[4]))[i];
-                tree->Fill();
+                tree.Fill();
             }
         }
 
@@ -231,9 +228,13 @@ int main(int argc, char **argv) {
         delete particles[1];
         delete particles[2];
         delete particles[3];
+
+        if(accepted == 0) {
+            GOOFIT_ERROR("ERROR: 0 Events accepted! Something is wrong with PDF evaluation (probably)");
+            return 2;
+        }
     }
 
-    tree->Write();
-    file->Close();
+    tree.Write();
     return 0;
 }

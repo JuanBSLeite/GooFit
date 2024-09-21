@@ -36,7 +36,7 @@ void Params::SetGooFitParams(const Minuit2::MnUserParameterState &input) {
     }
 }
 
-std::vector<double> Params::make_minuit_vector() const {
+auto Params::make_minuit_vector() const -> std::vector<double> {
     std::vector<double> minuitPars(max_fitter_index(vars_) + 1);
     for(const Variable &var : vars_) {
         minuitPars.at(var.getFitterIndex()) = var.getValue();
@@ -45,17 +45,15 @@ std::vector<double> Params::make_minuit_vector() const {
 }
 
 void Params::from_minuit_vector(const std::vector<double> &values, bool force_changed) {
-    std::vector<double> gooPars(max_index(vars_) + 1);
-
     for(Variable &var : vars_) {
         var.setChanged(force_changed ? true : var.getValue() != values.at(var.getFitterIndex()));
-        gooPars.at(var.getIndex()) = values.at(var.getFitterIndex()) - var.getBlind(Variable::Key());
+        pdf_->updateVariable(var, values.at(var.getFitterIndex()) - var.getBlind(Variable::Key()));
     }
 
     if(do_record_)
         recorded_.push_back(values);
 
-    pdf_->copyParams(gooPars);
+    pdf_->updateParameters();
 }
 
 } // namespace GooFit

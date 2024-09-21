@@ -1,4 +1,5 @@
 #include <goofit/Faddeeva.h>
+#include <goofit/PDFs/ParameterContainer.h>
 #include <goofit/PDFs/basic/VoigtianPdf.h>
 #include <goofit/detail/Complex.h>
 #include <limits>
@@ -6,7 +7,7 @@
 namespace GooFit {
 
 #define M_2PI 6.28318530717958
-//#define ROOT2 1.41421356
+// #define ROOT2 1.41421356
 
 // tables for Pade approximation
 __constant__ fptype C[7]
@@ -14,7 +15,7 @@ __constant__ fptype C[7]
 __constant__ fptype D[7]
     = {192192.0, 8648640.0, 183783600.0, 2329725600.0, 18332414100.0, 84329104860.0, 175685635125.0};
 
-//#define UNROLL_LOOP 1
+// #define UNROLL_LOOP 1
 
 #ifndef UNROLL_LOOP
 __constant__ fptype n1[12] = {0.25, 1.0, 2.25, 4.0, 6.25, 9.0, 12.25, 16.0, 20.25, 25.0, 30.25, 36.0};
@@ -47,7 +48,7 @@ __constant__ fptype e2[12] = {0.7551038420890235,
                               1.733038792213266e-15,
                               2.709954036083074e-18};
 
-__device__ fpcomplex device_Faddeeva_2(const fpcomplex &z) {
+__device__ auto device_Faddeeva_2(const fpcomplex &z) -> fpcomplex {
     fptype *n, *e, t, u, r, s, d, f, g, h;
     fpcomplex c, d2, v;
     int i;
@@ -274,15 +275,19 @@ __device__ fpcomplex device_Faddeeva_2(const fpcomplex &z) {
 }
 #endif
 
-__device__ fptype device_Voigtian(fptype *evt, fptype *p, unsigned int *indices) {
-    fptype x = evt[0];
-    fptype m = p[indices[1]];
-    fptype w = p[indices[2]];
-    fptype s = p[indices[3]];
+__device__ auto device_Voigtian(fptype *evt, ParameterContainer &pc) -> fptype {
+    int id = pc.getObservable(0);
+
+    fptype x = RO_CACHE(evt[id]);
+    fptype m = pc.getParameter(0);
+    fptype w = pc.getParameter(1);
+    fptype s = pc.getParameter(2);
 
     // return constant for zero width and sigma
-    if((0 == s) && (0 == w))
+    if((0 == s) && (0 == w)) {
+        pc.incrementIndex(1, 3, 0, 1, 1);
         return 1;
+    }
 
     // assert(s > 0); // No device-side assert?!
     // assert(w > 0);
@@ -290,14 +295,20 @@ __device__ fptype device_Voigtian(fptype *evt, fptype *p, unsigned int *indices)
     fptype arg = x - m;
 
     // Breit-Wigner for zero sigma
-    if(0 == s)
+    if(0 == s) {
+        pc.incrementIndex(1, 3, 0, 1, 1);
         return (1 / (arg * arg + 0.25 * w * w));
+    }
 
     fptype coef = -0.5 / (s * s);
 
     // Gauss for zero width
-    if(0 == w)
+    if(0 == w) {
+        pc.incrementIndex(1, 3, 0, 1, 1);
         return exp(coef * arg * arg);
+    }
+
+    pc.incrementIndex(1, 3, 0, 1, 1);
 
     // actual Voigtian for non-trivial width and sigma
     // fptype c = 1./(ROOT2*s);
@@ -315,13 +326,10 @@ __device__ fptype device_Voigtian(fptype *evt, fptype *p, unsigned int *indices)
 __device__ device_function_ptr ptr_to_Voigtian = device_Voigtian;
 
 __host__ VoigtianPdf::VoigtianPdf(std::string n, Observable _x, Variable m, Variable s, Variable w)
-    : GooPdf(n, _x) {
-    std::vector<unsigned int> pindices;
-    pindices.push_back(registerParameter(m));
-    pindices.push_back(registerParameter(s));
-    pindices.push_back(registerParameter(w));
-    GET_FUNCTION_ADDR(ptr_to_Voigtian);
-    initialize(pindices);
+    : GooPdf("VoigtianPdf", n, _x, m, s, w) {
+    registerFunction("ptr_to_Voigtian", ptr_to_Voigtian);
+
+    initialize();
 }
 
 } // namespace GooFit

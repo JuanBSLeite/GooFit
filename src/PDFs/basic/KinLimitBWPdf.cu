@@ -1,9 +1,10 @@
+#include <goofit/PDFs/ParameterContainer.h>
 #include <goofit/PDFs/basic/KinLimitBWPdf.h>
 #include <goofit/Variable.h>
 
 namespace GooFit {
 
-__device__ fptype getMomentum(const fptype &mass, const fptype &pimass, const fptype &d0mass) {
+__device__ auto getMomentum(const fptype &mass, const fptype &pimass, const fptype &d0mass) -> fptype {
     if(mass <= 0)
         return 0;
 
@@ -17,22 +18,26 @@ __device__ fptype getMomentum(const fptype &mass, const fptype &pimass, const fp
     return sqrt(0.5 * lambda / mass);
 }
 
-__device__ fptype bwFactor(const fptype &momentum) {
+__device__ auto bwFactor(const fptype &momentum) -> fptype {
     // 2.56 = 1.6^2, comes from radius for spin-1 particle
     return 1 / sqrt(1.0 + 2.56 * momentum * momentum);
 }
 
-__device__ fptype device_KinLimitBW(fptype *evt, fptype *p, unsigned int *indices) {
-    fptype x      = evt[RO_CACHE(indices[2 + RO_CACHE(indices[0])])];
-    fptype mean   = RO_CACHE(p[RO_CACHE(indices[1])]);
-    fptype width  = RO_CACHE(p[RO_CACHE(indices[2])]);
-    fptype d0mass = RO_CACHE(functorConstants[RO_CACHE(indices[3]) + 0]);
-    fptype pimass = RO_CACHE(functorConstants[RO_CACHE(indices[3]) + 1]);
+__device__ auto device_KinLimitBW(fptype *evt, ParameterContainer &pc) -> fptype {
+    int id = pc.getObservable(0);
+
+    fptype x      = RO_CACHE(evt[id]);
+    fptype mean   = pc.getParameter(0);
+    fptype width  = pc.getParameter(1);
+    fptype d0mass = pc.getConstant(0);
+    fptype pimass = pc.getConstant(1);
 
     mean += d0mass;
     x += d0mass;
 
     fptype pUsingRealMass = getMomentum(mean, pimass, d0mass);
+
+    pc.incrementIndex(1, 2, 2, 1, 1);
 
     if(0 >= pUsingRealMass)
         return 0;
@@ -51,23 +56,17 @@ __device__ fptype device_KinLimitBW(fptype *evt, fptype *p, unsigned int *indice
 __device__ device_function_ptr ptr_to_KinLimitBW = device_KinLimitBW;
 
 __host__ KinLimitBWPdf::KinLimitBWPdf(std::string n, Observable _x, Variable mean, Variable width)
-    : GooPdf(n, _x) {
-    registerParameter(mean);
-    registerParameter(width);
+    : GooPdf("KinLimitBWPdf", n, _x, mean, width) {
+    registerConstant(1.8645);
+    registerConstant(0.13957);
 
-    std::vector<unsigned int> pindices;
-    pindices.push_back(mean.getIndex());
-    pindices.push_back(width.getIndex());
-    pindices.push_back(registerConstants(2));
-    setMasses(1.8645, 0.13957);
-    GET_FUNCTION_ADDR(ptr_to_KinLimitBW);
-    initialize(pindices);
+    registerFunction("ptr_to_KinLimitBW", ptr_to_KinLimitBW);
+
+    initialize();
 }
 
 __host__ void KinLimitBWPdf::setMasses(fptype bigM, fptype smallM) {
-    fptype constants[2];
-    constants[0] = bigM;
-    constants[1] = smallM;
-    MEMCPY_TO_SYMBOL(functorConstants, constants, 2 * sizeof(fptype), cIndex * sizeof(fptype), cudaMemcpyHostToDevice);
+    constantsList[0] = bigM;
+    constantsList[1] = smallM;
 }
 } // namespace GooFit

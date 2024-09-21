@@ -4,19 +4,16 @@
 #include <goofit/PDFs/basic/LandauPdf.h>
 #include <goofit/PDFs/basic/NovosibirskPdf.h>
 #include <goofit/UnbinnedDataSet.h>
-#include <goofit/detail/Style.h>
+#include <goofit/Variable.h>
+#include <goofit/utilities/Style.h>
 
 #include <TCanvas.h>
 #include <TH1F.h>
 #include <TRandom.h>
 #include <TStyle.h>
-#include <goofit/Variable.h>
 
 #include <iostream>
-#include <sys/time.h>
-#include <sys/times.h>
 
-using namespace std;
 using namespace GooFit;
 
 // CPU-side Novosibirsk evaluation for use in generating toy MC.
@@ -33,13 +30,13 @@ double novosib(double x, double peak, double width, double tail) {
 
         //---- Cutting curve from right side
         if(qy > 1.E-7)
-            qc = 0.5 * (pow((log(qy) / tail), 2) + tail * tail);
+            qc = 0.5 * (std::pow((std::log(qy) / tail), 2) + tail * tail);
         else
             qc = 15.0;
     }
 
     //---- Normalize the result
-    return exp(-qc);
+    return std::exp(-qc);
 }
 
 TCanvas *foo = 0;
@@ -88,7 +85,7 @@ int main(int argc, char **argv) {
     GooFit::Application app("Simple fit example", argc, argv);
 
     size_t numevents = 100000;
-    app.add_option("-n,--num", numevents, "Number of events", true);
+    app.add_option("-n,--num", numevents, "Number of events")->capture_default_str();
 
     GOOFIT_PARSE(app);
 
@@ -96,7 +93,7 @@ int main(int argc, char **argv) {
 
     // Independent variable.
     Observable xvar("xvar", -100, 100);
-    xvar.setNumBins(1000); // For such a large range, want more bins for better accuracy in normalisation.
+    xvar.setNumBins(1000); // For such a large range, want more bins for better accuracy in normalization.
 
     // Data sets for the three fits.
     UnbinnedDataSet landdata(xvar);

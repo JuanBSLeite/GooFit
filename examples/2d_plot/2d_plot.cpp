@@ -4,7 +4,7 @@
 #include <goofit/PDFs/combine/ProdPdf.h>
 #include <goofit/UnbinnedDataSet.h>
 #include <goofit/Variable.h>
-#include <goofit/detail/Style.h>
+#include <goofit/utilities/Style.h>
 
 #include <RVersion.h>
 #include <TCanvas.h>
@@ -16,7 +16,6 @@
 #include <sys/time.h>
 #include <sys/times.h>
 
-using namespace std;
 using namespace GooFit;
 
 int main(int argc, char **argv) {

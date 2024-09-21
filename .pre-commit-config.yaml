@@ -1,0 +1,70 @@
+ci:
+  autoupdate_commit_msg: "chore: update pre-commit hooks"
+  autofix_commit_msg: "style: pre-commit fixes"
+
+repos:
+- repo: https://github.com/psf/black-pre-commit-mirror
+  rev: 23.7.0
+  hooks:
+  - id: black
+
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.4.0
+  hooks:
+  - id: check-added-large-files
+  - id: check-case-conflict
+  - id: check-merge-conflict
+  - id: check-symlinks
+  - id: check-yaml
+  - id: debug-statements
+  - id: end-of-file-fixer
+  - id: mixed-line-ending
+  - id: requirements-txt-fixer
+  - id: trailing-whitespace
+
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: "v0.0.272"
+  hooks:
+  - id: ruff
+    args: ["--fix", "--show-fixes"]
+
+- repo: https://github.com/cheshirekow/cmake-format-precommit
+  rev: v0.6.13
+  hooks:
+  - id: cmake-format
+    additional_dependencies: [pyyaml]
+    types: [file]
+    files: (\.cmake|CMakeLists.txt)(.in)?$
+
+- repo: https://github.com/codespell-project/codespell
+  rev: v2.2.4
+  hooks:
+  - id: codespell
+    args: ["-L", "sur,falsy,gaus,hist,lsit,nd,parms,retur,ue,ba,claus,fo"]
+
+- repo: https://github.com/pre-commit/pygrep-hooks
+  rev: v1.10.0
+  hooks:
+  - id: rst-backticks
+  - id: rst-directive-colons
+  - id: rst-inline-touching-normal
+
+- repo: local
+  hooks:
+  - id: disallow-caps
+    name: Disallow improper capitalization
+    language: pygrep
+    entry: PyBind|Numpy|Cmake
+    exclude: .pre-commit-config.yaml
+
+- repo: https://github.com/pre-commit/mirrors-clang-format
+  rev: v16.0.4
+  hooks:
+   - id: clang-format
+     types_or: [c++, c, cuda]
+
+- repo: https://github.com/shellcheck-py/shellcheck-py
+  rev: v0.9.0.5
+  hooks:
+  - id: shellcheck
+    stages: [manual]

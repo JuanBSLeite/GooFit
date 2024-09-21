@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
-from __future__ import print_function, division
+
+import sys
+
+import numpy as np
 
 from goofit import *
-import numpy as np
-import sys
 
 print_goofit_info()
 
@@ -15,9 +15,9 @@ xvar = Observable("xvar", 0, np.max(xdata) + 1)
 ydata = np.random.exponential(size=100000)
 yvar = Observable("yvar", 0, np.max(ydata) + 1)
 
-varList = (xvar,yvar)
+varList = (xvar, yvar)
 
-data = UnbinnedDataSet(xvar,yvar)
+data = UnbinnedDataSet(xvar, yvar)
 data.from_matrix([xdata, ydata])
 
 alpha_x = Variable("alpha_x", -2.4, 0.1, -10, 10)

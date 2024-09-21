@@ -5,11 +5,13 @@
 #include <goofit/FitManager.h>
 #include <goofit/PDFs/basic/PolynomialPdf.h>
 #include <goofit/PDFs/combine/AddPdf.h>
-#include <goofit/PDFs/physics/DP4Pdf.h>
+#include <goofit/PDFs/physics/Amp4Body.h>
+#include <goofit/PDFs/physics/Amplitude.h>
+#include <goofit/PDFs/physics/Lineshapes.h>
+#include <goofit/PDFs/physics/SpinFactors.h>
 #include <goofit/UnbinnedDataSet.h>
 #include <goofit/Variable.h>
 
-using namespace std;
 using namespace GooFit;
 
 const fptype _mD0       = 1.8645;
@@ -20,16 +22,12 @@ const fptype KmMass     = .493677;
 int main(int argc, char **argv) {
     GooFit::Application app("Dalitz 4 daughter example", argc, argv);
 
-    // Set all host normalisation just to make sure no errors
-    for(int i = 0; i < maxParams; i++)
-        host_normalisation[i] = -7;
-
     GOOFIT_PARSE(app, argc, argv);
 
     Observable m12{"m12", 0, 3};
     Observable m34{"m34", 0, 3};
     Observable cos12{"cos12", -1, 1};
-    Observable cos34{"m12", -1, 1};
+    Observable cos34{"co34", -1, 1};
     Observable phi{"phi", -3.5, 3.5};
     EventNumber eventNumber{"eventNumber", 0, INT_MAX};
 
@@ -40,7 +38,7 @@ int main(int argc, char **argv) {
     std::string input_str = app.get_filename("ToyMC.txt", "examples/DP4");
 
     { // FStream block
-        fstream input(input_str, std::ios_base::in);
+        std::fstream input(input_str, std::ios_base::in);
 
         while(input >> m12 >> m34 >> cos12 >> cos34 >> phi) {
             eventNumber.setValue(MCevents++);
@@ -68,29 +66,29 @@ int main(int argc, char **argv) {
     Variable K1430W{"K1430W", 0.29};
 
     // Spin factors: we have two due to the bose symmetrization of the two pi+
-    std::vector<SpinFactor *> SFKRS = {new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_S, 0, 1, 2, 3),
-                                       new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_S, 3, 1, 2, 0)};
+    std::vector<SpinFactor *> SFKRS = {new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_S, _mD0, 0, 1, 2, 3),
+                                       new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_S, _mD0, 3, 1, 2, 0)};
 
-    std::vector<SpinFactor *> SFKRP = {new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_P, 0, 1, 2, 3),
-                                       new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_P, 3, 1, 2, 0)};
+    std::vector<SpinFactor *> SFKRP = {new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_P, _mD0, 0, 1, 2, 3),
+                                       new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_P, _mD0, 3, 1, 2, 0)};
 
-    std::vector<SpinFactor *> SFKRD = {new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_D, 0, 1, 2, 3),
-                                       new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_D, 3, 1, 2, 0)};
+    std::vector<SpinFactor *> SFKRD = {new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_D, _mD0, 0, 1, 2, 3),
+                                       new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_D, _mD0, 3, 1, 2, 0)};
 
-    std::vector<SpinFactor *> SFKF = {new SpinFactor("SF", SF_4Body::DtoVS_VtoP1P2_StoP3P4, 2, 3, 0, 1),
-                                      new SpinFactor("SF", SF_4Body::DtoVS_VtoP1P2_StoP3P4, 2, 0, 3, 1)};
+    std::vector<SpinFactor *> SFKF = {new SpinFactor("SF", SF_4Body::DtoVS_VtoP1P2_StoP3P4, _mD0, 2, 3, 0, 1),
+                                      new SpinFactor("SF", SF_4Body::DtoVS_VtoP1P2_StoP3P4, _mD0, 2, 0, 3, 1)};
 
-    std::vector<SpinFactor *> SFKK = {new SpinFactor("SF", SF_4Body::DtoAP1_AtoSP2_StoP3P4, 0, 1, 3, 2),
-                                      new SpinFactor("SF", SF_4Body::DtoAP1_AtoSP2_StoP3P4, 3, 1, 0, 2)};
+    std::vector<SpinFactor *> SFKK = {new SpinFactor("SF", SF_4Body::DtoAP1_AtoSP2_StoP3P4, _mD0, 0, 1, 3, 2),
+                                      new SpinFactor("SF", SF_4Body::DtoAP1_AtoSP2_StoP3P4, _mD0, 3, 1, 0, 2)};
 
-    std::vector<SpinFactor *> SFK1R = {new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, 3, 2, 0, 1),
-                                       new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, 0, 2, 3, 1)};
+    std::vector<SpinFactor *> SFK1R = {new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, _mD0, 3, 2, 0, 1),
+                                       new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, _mD0, 0, 2, 3, 1)};
 
-    std::vector<SpinFactor *> SFA1R = {new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, 2, 3, 0, 1),
-                                       new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, 2, 0, 3, 1)};
+    std::vector<SpinFactor *> SFA1R = {new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, _mD0, 2, 3, 0, 1),
+                                       new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, _mD0, 2, 0, 3, 1)};
 
-    std::vector<SpinFactor *> SFA1RD = {new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2Dwave_VtoP3P4, 2, 3, 0, 1),
-                                        new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2Dwave_VtoP3P4, 2, 0, 3, 1)};
+    std::vector<SpinFactor *> SFA1RD = {new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2Dwave_VtoP3P4, _mD0, 2, 3, 0, 1),
+                                        new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2Dwave_VtoP3P4, _mD0, 2, 0, 3, 1)};
 
     // Lineshapes, also for both pi+ configurations
     std::vector<Lineshape *> LSKRS = {new Lineshapes::RBW("rho(770)", RhoMass, RhoWidth, 1, M_12),
@@ -214,12 +212,12 @@ int main(int argc, char **argv) {
     Variable constantOne{"constantOne", 1};
     Variable constantZero{"constantZero", 0};
 
-    vector<Observable> observables = {m12, m34, cos12, cos34, phi, eventNumber};
-    vector<Variable> coefficients  = {constantOne};
-    vector<Variable> offsets       = {constantZero, constantZero};
+    std::vector<Observable> observables = {m12, m34, cos12, cos34, phi, eventNumber};
+    std::vector<Variable> coefficients  = {constantOne};
+    std::vector<Variable> offsets       = {constantZero, constantZero};
 
     PolynomialPdf eff{"constantEff", observables, coefficients, offsets, 0};
-    DPPdf dp{"test", observables, DK3P_DI, &eff, 1000000};
+    Amp4Body dp{"test", observables, DK3P_DI, &eff, 1000000};
 
     Variable constant{"constant", 0.1};
     Variable constant2{"constant2", 1.0};
@@ -229,7 +227,7 @@ int main(int argc, char **argv) {
     signal.setData(&currData);
 
     dp.setDataSize(currData.getNumEvents(), 6);
-
+    GOOFIT_INFO("Starting fit {}", currData.getNumEvents());
     FitManager datapdf{&signal};
     datapdf.fit();
 

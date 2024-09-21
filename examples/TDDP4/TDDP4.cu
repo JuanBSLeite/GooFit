@@ -7,14 +7,14 @@
 #include <goofit/Application.h>
 #include <goofit/PDFs/basic/PolynomialPdf.h>
 #include <goofit/PDFs/combine/AddPdf.h>
-#include <goofit/PDFs/physics/DP4Pdf.h>
-#include <goofit/PDFs/physics/Tddp4Pdf.h>
-#include <goofit/PDFs/physics/TruthResolution_Aux.h>
+#include <goofit/PDFs/physics/Amp4Body_TD.h>
+#include <goofit/PDFs/physics/Lineshapes.h>
+#include <goofit/PDFs/physics/SpinFactors.h>
+#include <goofit/PDFs/physics/TruthResolution.h>
 #include <goofit/UnbinnedDataSet.h>
 #include <goofit/Variable.h>
 #include <thrust/count.h>
 
-using namespace std;
 using namespace GooFit;
 
 // Constants used in more than one PDF component.
@@ -26,10 +26,12 @@ int main(int argc, char **argv) {
     GooFit::Application app("Time dependent Dalitz plot, 4 particles", argc, argv);
 
     TString output = "test_10_15.output";
-    app.add_option("-o,--output,output", output, "File to output", true)->check(GooFit::NonexistentPath);
+    app.add_option("-o,--output,output", output, "File to output")
+        ->capture_default_str()
+        ->check(GooFit::NonexistentPath);
 
     int trials = 100;
-    app.add_option("-t,--trials,output", trials, "Number of trials", true);
+    app.add_option("-t,--trials,output", trials, "Number of trials")->capture_default_str();
 
     GOOFIT_PARSE(app);
 
@@ -60,36 +62,36 @@ int main(int argc, char **argv) {
     // Variable* K1430W  = new Variable("K1430W", .29, 0.01, 0.25, 0.35);
 
     // Spin factors: we have two due to the bose symmetrization of the two pi+
-    std::vector<SpinFactor *> SFKRS = {new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_S, 0, 1, 2, 3),
-                                       new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_S, 3, 1, 2, 0)};
+    std::vector<SpinFactor *> SFKRS = {new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_S, _mD0, 0, 1, 2, 3),
+                                       new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_S, _mD0, 3, 1, 2, 0)};
 
     std::vector<SpinFactor *> SFKRP;
-    SFKRP.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_P, 0, 1, 2, 3));
-    SFKRP.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_P, 3, 1, 2, 0));
+    SFKRP.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_P, _mD0, 0, 1, 2, 3));
+    SFKRP.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_P, _mD0, 3, 1, 2, 0));
 
     std::vector<SpinFactor *> SFKRD;
-    SFKRD.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_D, 0, 1, 2, 3));
-    SFKRD.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_D, 3, 1, 2, 0));
+    SFKRD.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_D, _mD0, 0, 1, 2, 3));
+    SFKRD.push_back(new SpinFactor("SF", SF_4Body::DtoV1V2_V1toP1P2_V2toP3P4_D, _mD0, 3, 1, 2, 0));
 
     std::vector<SpinFactor *> SFKF;
-    SFKF.push_back(new SpinFactor("SF", SF_4Body::DtoVS_VtoP1P2_StoP3P4, 2, 3, 0, 1));
-    SFKF.push_back(new SpinFactor("SF", SF_4Body::DtoVS_VtoP1P2_StoP3P4, 2, 0, 3, 1));
+    SFKF.push_back(new SpinFactor("SF", SF_4Body::DtoVS_VtoP1P2_StoP3P4, _mD0, 2, 3, 0, 1));
+    SFKF.push_back(new SpinFactor("SF", SF_4Body::DtoVS_VtoP1P2_StoP3P4, _mD0, 2, 0, 3, 1));
 
     std::vector<SpinFactor *> SFKK;
-    SFKK.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoSP2_StoP3P4, 0, 1, 3, 2));
-    SFKK.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoSP2_StoP3P4, 3, 1, 0, 2));
+    SFKK.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoSP2_StoP3P4, _mD0, 0, 1, 3, 2));
+    SFKK.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoSP2_StoP3P4, _mD0, 3, 1, 0, 2));
 
     std::vector<SpinFactor *> SFK1R;
-    SFK1R.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, 3, 2, 0, 1));
-    SFK1R.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, 0, 2, 3, 1));
+    SFK1R.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, _mD0, 3, 2, 0, 1));
+    SFK1R.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, _mD0, 0, 2, 3, 1));
 
     std::vector<SpinFactor *> SFA1R;
-    SFA1R.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, 2, 3, 0, 1));
-    SFA1R.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, 2, 0, 3, 1));
+    SFA1R.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, _mD0, 2, 3, 0, 1));
+    SFA1R.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2_VtoP3P4, _mD0, 2, 0, 3, 1));
 
     std::vector<SpinFactor *> SFA1RD;
-    SFA1RD.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2Dwave_VtoP3P4, 2, 3, 0, 1));
-    SFA1RD.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2Dwave_VtoP3P4, 2, 0, 3, 1));
+    SFA1RD.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2Dwave_VtoP3P4, _mD0, 2, 3, 0, 1));
+    SFA1RD.push_back(new SpinFactor("SF", SF_4Body::DtoAP1_AtoVP2Dwave_VtoP3P4, _mD0, 2, 0, 3, 1));
 
     // Lineshapes, also for both pi+ configurations
     std::vector<Lineshape *> LSKRS = {new Lineshapes::RBW("rho(770)", RhoMass, RhoWidth, 1, M_12, FF::BL2),
@@ -145,55 +147,53 @@ int main(int argc, char **argv) {
     Variable constantOne{"constantOne", 1};
     Variable constantZero{"constantZero", 0};
 
-    vector<Observable> observables{m12, m34, cos12, cos34, phi, eventNumber, dtime, sigmat};
-    vector<Variable> offsets{constantZero, constantZero};
-    vector<Variable> coefficients{constantOne};
+    std::vector<Observable> observables{m12, m34, cos12, cos34, phi, eventNumber, dtime, sigmat};
+    std::vector<Variable> offsets{constantZero, constantZero};
+    std::vector<Variable> coefficients{constantOne};
 
     TruthResolution dat;
     PolynomialPdf eff{"constantEff", observables, coefficients, offsets, 0};
-    TDDP4 dp{"test", observables, DK3P_DI, &dat, &eff, 0, 1};
+    Amp4Body_TD dp{"test", observables, DK3P_DI, &dat, &eff, 0, 1, 1000};
 
-    TFile *file = new TFile(output, "RECREATE");
-    TTree *tree = new TTree("events", "events");
+    TFile file(output, "RECREATE");
+    TTree tree("events", "events");
 
     double tm12, tm34, tc12, tc34, tphi, tdtime, D0_E, D0_Px, D0_Py, D0_Pz, Kplus_E, Kplus_Px, Kplus_Py, Kplus_Pz,
         Piminus1_E, Piminus1_Px, Piminus1_Py, Piminus1_Pz, Piminus2_E, Piminus2_Px, Piminus2_Py, Piminus2_Pz, Piplus_E,
         Piplus_Px, Piplus_Py, Piplus_Pz;
     int D0_pdg, Kplus_pdg, Piminus1_pdg, Piminus2_pdg, Piplus_pdg;
 
-    tree->Branch("m12", &tm12, "m12/D");
-    tree->Branch("m34", &tm34, "m34/D");
-    tree->Branch("c12", &tc12, "c12/D");
-    tree->Branch("c34", &tc34, "c34/D");
-    tree->Branch("phi", &tphi, "phi/D");
-    tree->Branch("dtime", &tdtime, "dtime/D");
-    tree->Branch("D0_E", &D0_E, "D0_E/D");
-    tree->Branch("D0_Px", &D0_Px, "D0_Px/D");
-    tree->Branch("D0_Py", &D0_Py, "D0_Py/D");
-    tree->Branch("D0_Pz", &D0_Pz, "D0_Pz/D");
-    tree->Branch("D0_pdg", &D0_pdg, "D0_pdg/I");
-    tree->Branch("Kplus_E", &Kplus_E, "Kplus_E/D");
-    tree->Branch("Kplus_Px", &Kplus_Px, "Kplus_Px/D");
-    tree->Branch("Kplus_Py", &Kplus_Py, "Kplus_Py/D");
-    tree->Branch("Kplus_Pz", &Kplus_Pz, "Kplus_Pz/D");
-    tree->Branch("Kplus_pdg", &Kplus_pdg, "Kplus_pdg/I");
-    tree->Branch("Piminus1_E", &Piminus1_E, "Piminus1_E/D");
-    tree->Branch("Piminus1_Px", &Piminus1_Px, "Piminus1_Px/D");
-    tree->Branch("Piminus1_Py", &Piminus1_Py, "Piminus1_Py/D");
-    tree->Branch("Piminus1_Pz", &Piminus1_Pz, "Piminus1_Pz/D");
-    tree->Branch("Piminus1_pdg", &Piminus1_pdg, "Piminus1_pdg/I");
-    tree->Branch("Piminus2_E", &Piminus2_E, "Piminus2_E/D");
-    tree->Branch("Piminus2_Px", &Piminus2_Px, "Piminus2_Px/D");
-    tree->Branch("Piminus2_Py", &Piminus2_Py, "Piminus2_Py/D");
-    tree->Branch("Piminus2_Pz", &Piminus2_Pz, "Piminus2_Pz/D");
-    tree->Branch("Piminus2_pdg", &Piminus2_pdg, "Piminus2_pdg/I");
-    tree->Branch("Piplus_E", &Piplus_E, "Piplus_E/D");
-    tree->Branch("Piplus_Px", &Piplus_Px, "Piplus_Px/D");
-    tree->Branch("Piplus_Py", &Piplus_Py, "Piplus_Py/D");
-    tree->Branch("Piplus_Pz", &Piplus_Pz, "Piplus_Pz/D");
-    tree->Branch("Piplus_pdg", &Piplus_pdg, "Piplus_pdg/I");
-
-    int total_accepted = 0;
+    tree.Branch("m12", &tm12, "m12/D");
+    tree.Branch("m34", &tm34, "m34/D");
+    tree.Branch("c12", &tc12, "c12/D");
+    tree.Branch("c34", &tc34, "c34/D");
+    tree.Branch("phi", &tphi, "phi/D");
+    tree.Branch("dtime", &tdtime, "dtime/D");
+    tree.Branch("D0_E", &D0_E, "D0_E/D");
+    tree.Branch("D0_Px", &D0_Px, "D0_Px/D");
+    tree.Branch("D0_Py", &D0_Py, "D0_Py/D");
+    tree.Branch("D0_Pz", &D0_Pz, "D0_Pz/D");
+    tree.Branch("D0_pdg", &D0_pdg, "D0_pdg/I");
+    tree.Branch("Kplus_E", &Kplus_E, "Kplus_E/D");
+    tree.Branch("Kplus_Px", &Kplus_Px, "Kplus_Px/D");
+    tree.Branch("Kplus_Py", &Kplus_Py, "Kplus_Py/D");
+    tree.Branch("Kplus_Pz", &Kplus_Pz, "Kplus_Pz/D");
+    tree.Branch("Kplus_pdg", &Kplus_pdg, "Kplus_pdg/I");
+    tree.Branch("Piminus1_E", &Piminus1_E, "Piminus1_E/D");
+    tree.Branch("Piminus1_Px", &Piminus1_Px, "Piminus1_Px/D");
+    tree.Branch("Piminus1_Py", &Piminus1_Py, "Piminus1_Py/D");
+    tree.Branch("Piminus1_Pz", &Piminus1_Pz, "Piminus1_Pz/D");
+    tree.Branch("Piminus1_pdg", &Piminus1_pdg, "Piminus1_pdg/I");
+    tree.Branch("Piminus2_E", &Piminus2_E, "Piminus2_E/D");
+    tree.Branch("Piminus2_Px", &Piminus2_Px, "Piminus2_Px/D");
+    tree.Branch("Piminus2_Py", &Piminus2_Py, "Piminus2_Py/D");
+    tree.Branch("Piminus2_Pz", &Piminus2_Pz, "Piminus2_Pz/D");
+    tree.Branch("Piminus2_pdg", &Piminus2_pdg, "Piminus2_pdg/I");
+    tree.Branch("Piplus_E", &Piplus_E, "Piplus_E/D");
+    tree.Branch("Piplus_Px", &Piplus_Px, "Piplus_Px/D");
+    tree.Branch("Piplus_Py", &Piplus_Py, "Piplus_Py/D");
+    tree.Branch("Piplus_Pz", &Piplus_Pz, "Piplus_Pz/D");
+    tree.Branch("Piplus_pdg", &Piplus_pdg, "Piplus_pdg/I");
 
     for(int k = 0; k < trials; ++k) {
         int numEvents = 800000;
@@ -207,10 +207,14 @@ int main(int argc, char **argv) {
         std::tie(particles, variables, weights, flags) = dp.GenerateSig(numEvents);
 
         int accepted = thrust::count_if(flags.begin(), flags.end(), thrust::identity<bool>());
-        total_accepted += accepted;
 
         GOOFIT_INFO(
             "Run #{}: Using accept-reject method would leave you with {} out of {} events", k, accepted, numEvents);
+
+        if(accepted == 0) {
+            GOOFIT_ERROR("ERROR: Total accepted is 0! Something is wrong");
+            return 2;
+        }
 
         for(int i = 0; i < weights.size(); ++i) {
             if(flags[i] == 1) {
@@ -248,7 +252,7 @@ int main(int argc, char **argv) {
                 Piplus_Pz    = 1000 * (*(particles[1]))[i].get(3);
                 Piplus_pdg   = -211;
 
-                tree->Fill();
+                tree.Fill();
             }
         }
 
@@ -265,13 +269,7 @@ int main(int argc, char **argv) {
         delete particles[3];
     }
 
-    tree->Write();
-    file->Close();
+    tree.Write();
 
-    if(total_accepted > 0)
-        return 0;
-    else {
-        GOOFIT_ERROR("Total accepted was 0! Something is wrong.");
-        return 1;
-    }
+    return 0;
 }

@@ -25,11 +25,18 @@ class UnbinnedDataSet : public DataSet {
 
     void addEvent() override;
 
+    /// Delete the current events
+    void clear() {
+        for(auto &dat : data)
+            dat.clear();
+        numEventsAdded = 0;
+    }
+
     /// Replace the current dataset with a grid
     void fillWithGrid();
 
     /// Get the value at a specific variable and event number
-    fptype getValue(const Observable &var, size_t idx) const;
+    auto getValue(const Observable &var, size_t idx) const -> fptype;
 
     /// Set all the variables to the current event values
     void loadEvent(size_t idx);
@@ -63,7 +70,7 @@ class UnbinnedDataSet : public DataSet {
 
     /// Produce an eigen Matrix
     template <typename M>
-    M to_matrix() const {
+    auto to_matrix() const -> M {
         size_t rows = data.size();
         size_t cols = data.at(0).size();
         M mat(rows, cols);

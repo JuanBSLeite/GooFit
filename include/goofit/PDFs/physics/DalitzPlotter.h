@@ -1,8 +1,8 @@
 #pragma once
 
 #include <goofit/PDFs/GooPdf.h>
+#include <goofit/PDFs/physics/Amp3Body.h>
 #include <goofit/PDFs/physics/DalitzPlotHelpers.h>
-#include <goofit/PDFs/physics/DalitzPlotPdf.h>
 #include <goofit/Version.h>
 
 #include <algorithm>
@@ -93,7 +93,7 @@ class DalitzPlotter {
         #endif
 
   public:
-    DalitzPlotter( GooPdf * overallSignal , DalitzPlotPdf * signalDalitz )
+    DalitzPlotter(GooPdf *overallSignal, Amp3Body *signalDalitz)
         : m12(signalDalitz->_m12)
         , m13(signalDalitz->_m13)
         , eventNumber(signalDalitz->_eventNumber)
@@ -166,31 +166,28 @@ class DalitzPlotter {
         }
     }
 
-    
-    
+    auto getNumEvents() const -> size_t { return data.getNumEvents(); }
 
-    size_t getNumEvents() const { return data.getNumEvents(); }
+    auto getX(size_t event) const -> size_t { return xbins.at(event); }
 
-    size_t getX(size_t event) const { return xbins.at(event); }
+    auto getY(size_t event) const -> size_t { return ybins.at(event); }
 
-    size_t getY(size_t event) const { return ybins.at(event); }
+    auto getXval(size_t event) const -> fptype { return data.getValue(m12, event); }
 
-    fptype getXval(size_t event) const { return data.getValue(m12, event); }
+    auto getYval(size_t event) const -> fptype { return data.getValue(m13, event); }
 
-    fptype getYval(size_t event) const { return data.getValue(m13, event); }
+    auto getZval(size_t event) const -> fptype { return POW2(mother) - POW2(getXval(event)) - POW2(getYval(event)); }
 
-    fptype getZval(size_t event) const { return POW2(mother) - POW2(getXval(event)) - POW2(getYval(event)); }
+    auto getVal(size_t event, size_t num = 0) const -> fptype { return pdfValues.at(num).at(event); }
 
-    fptype getVal(size_t event, size_t num = 0) const { return pdfValues.at(num).at(event); }
+    auto getDataSet() -> UnbinnedDataSet * { return &data; }
 
-    UnbinnedDataSet *getDataSet() { return &data; }
-
-    const Observable &getM12() const { return m12; }
-    const Observable &getM13() const { return m13; }
+    auto getM12() const -> const Observable & { return m12; }
+    auto getM13() const -> const Observable & { return m13; }
 
 #if GOOFIT_ROOT_FOUND
     /// Produce a TH2F over the contained evaluation
-    TH2F *make2D(std::string name = "dalitzplot", std::string title = "") {
+    auto make2D(std::string name = "dalitzplot", std::string title = "") -> TH2F * {
         auto *dalitzplot = new TH2F(name.c_str(),
                                     title.c_str(),
                                     m12.getNumBins(),

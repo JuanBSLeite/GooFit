@@ -1,29 +1,68 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
-from __future__ import print_function, division
+
+import argparse
+
+import numpy as np
 
 from goofit import *
-import numpy as np
 
 print_goofit_info()
 
-def main():
-    mode = 0, data = 0
-    plot
 
-    dm = Variable("dm", 0.1395, 0.1665)
-    dm.setNumBins(2700)
-
-    mc_dataset = ()
-    data_dataset = ()
+def getData(data, dm, filename, mode, reduce=1, keyw="data_hist"):
+    raw = np.loadtxt(filename, unpack=True)
 
     if mode == 0:
-        mc_dataset.reset(UnbinnedDataSet(dm))
-        data_dataset.reset(UnbinnedDataSet(dm))
+        data.from_matrix(raw[np.newaxis, ::reduce], filter=True)
     else:
-        mc_dataset.reset(BinnedDataSet(dm))
-        data_dataset.reset(BinnedDataSet(dm))
+        for value in raw[::reduce]:
+            dm.value = value
+            if dm:
+                data.addEvent()
+
+    print(f"Read in {keyw} events:", data.getNumEvents())
+
+
+def main(mode=0, data=0, reduce=10):
+    # Get the name of the files to use
+    if data == 0:
+        mcfile = (
+            GOOFIT_SOURCE_DIR + "/examples/zachFit/dataFiles/dstwidth_kpi_resMC.dat"
+        )
+        datafile = (
+            GOOFIT_SOURCE_DIR + "/examples/zachFit/dataFiles/dstwidth_kpi_data.dat"
+        )
+    elif data == 1:
+        mcfile = (
+            GOOFIT_SOURCE_DIR
+            + "/examples/zachFit/dataFiles/DstarWidth_D0ToKpi_deltaM_MC.dat"
+        )
+        datafile = (
+            GOOFIT_SOURCE_DIR
+            + "/examples/zachFit/dataFiles/DstarWidth_D0ToKpi_deltaM_Data.dat"
+        )
+    else:
+        mcfile = (
+            GOOFIT_SOURCE_DIR
+            + "/examples/zachFit/dataFiles/DstarWidth_D0ToK3pi_deltaM_MC.dat"
+        )
+        datafile = (
+            GOOFIT_SOURCE_DIR
+            + "/examples/zachFit/dataFiles/DstarWidth_D0ToK3pi_deltaM_Data.dat"
+        )
+
+    dm = Observable("dm", 0.1395, 0.1665)
+    dm.numbins = 2700
+
+    if mode == 0:
+        mc_dataset = UnbinnedDataSet(dm)
+        data_dataset = UnbinnedDataSet(dm)
+    else:
+        mc_dataset = BinnedDataSet(dm)
+        data_dataset = BinnedDataSet(dm)
+
+    getData(mc_dataset, dm, mcfile, mode, reduce, "mc_hist")
 
     mean1 = Variable("kpi_mc_mean1", 0.145402, 0.00001, 0.143, 0.148)
     mean2 = Variable("kpi_mc_mean2", 0.145465, 0.00001, 0.145, 0.1465)
@@ -43,13 +82,15 @@ def main():
     gauss1 = GaussianPdf("gauss1", dm, mean1, sigma1)
     gauss2 = GaussianPdf("gauss2", dm, mean2, sigma2)
     gauss3 = GaussianPdf("gauss3", dm, mean3, sigma3)
-    argus = ArgusPdf("argus", dm, pimass, aslope, false, apower)
+    argus = ArgusPdf("argus", dm, pimass, aslope, False, apower)
 
-    resolution = AddPdf("resolution", (gfrac1, gfrac2, afrac), (gauss1, gauss2, argus, gauss3))
+    resolution = AddPdf(
+        "resolution", (gfrac1, gfrac2, afrac), (gauss1, gauss2, argus, gauss3)
+    )
 
-    resolution.setData(mc_dataset.get())
+    resolution.setData(mc_dataset)
 
-    mcpdf = FitManagr(resolution)
+    mcpdf = FitManager(resolution)
     mcpdf.fit()
 
     # Locking the MC variables
@@ -70,9 +111,15 @@ def main():
     delta = Variable("kpi_rd_delta", 0.000002, -0.00005, 0.00005)
     epsilon = Variable("kpi_rd_epsilon", 0.05, -0.1, 0.2)
 
-    resolution1 = ScaledGaussianPdf("resolution1", dm, dummyzero, sigma1, delta, epsilon)
-    resolution2 = ScaledGaussianPdf("resolution2", dm, dummyzero, sigma2, delta, epsilon)
-    resolution3 = ScaledGaussianPdf("resolution3", dm, dummyzero, sigma3, delta, epsilon)
+    resolution1 = ScaledGaussianPdf(
+        "resolution1", dm, dummyzero, sigma1, delta, epsilon
+    )
+    resolution2 = ScaledGaussianPdf(
+        "resolution2", dm, dummyzero, sigma2, delta, epsilon
+    )
+    resolution3 = ScaledGaussianPdf(
+        "resolution3", dm, dummyzero, sigma3, delta, epsilon
+    )
 
     width_bw = Variable("kpi_rd_width_bw", 0.0001, 0.00001, 0.0005)
     rbw1 = KinLimitBWPdf("rbw1", dm, mean1, width_bw)
@@ -87,23 +134,54 @@ def main():
     signal2.setIntegrationConstants(0.1395, 0.1665, 0.0000027)
     signal3.setIntegrationConstants(0.1395, 0.1665, 0.0000027)
 
-    signal = AddPdf("signal", (gfrac1, gfrac2, afrac), (signal1, signal2, argus, signal3))
-
-    slope = Variable("kpi_rd_slope", -1.0, 0.1, -35.0, 25.0)
-    bpower = nullptr
-    bkg = ArgusPdf("bkg", dm, pimass, slope, false, bpower)
-    bkg_frac = Variable("kpi_rd_bkg_frac", 0.03, 0.0, 0.3)
-    total = AddPdf("total", (bkg_frac), (bkg, signal))
-    total.setData(data_dataset.get())
-
-    chi_control = ()
-    if(2 == mode) (
-        chi_control.reset(BinnedChisqFit)
-        total.setFitControl(chi_control.get())
+    signal = AddPdf(
+        "signal", (gfrac1, gfrac2, afrac), (signal1, signal2, argus, signal3)
     )
 
-    FitManager datapdf(total)
+    slope = Variable("kpi_rd_slope", -1.0, 0.1, -35.0, 25.0)
+    # bpower = None
+    bkg = ArgusPdf("bkg", dm, pimass, slope, False)
+    bkg_frac = Variable("kpi_rd_bkg_frac", 0.03, 0.0, 0.3)
+
+    getData(data_dataset, dm, datafile, mode, reduce, "data_hist")
+
+    total = AddPdf("total", (bkg_frac,), (bkg, signal))
+    total.setData(data_dataset)
+
+    chi_control = ()
+    if mode == 2:
+        chi_control.reset(BinnedChisqFit)
+        total.setFitControl(chi_control.get())
+
+    datapdf = FitManager(total)
     datapdf.fit()
     return datapdf
-)
-main()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        """\
+        Dataset descriptions:
+        0-simple   Early testing sample for GooFit before nominal dataset was released.
+        MC resolution sample and data for channel D*+ -> D0 pi+; D0 -> K- pi+
+        Samples are composed of events that pass the majority of selection criteria, but
+        fail at least one of the stricter tracking cuts. The resulting resolution is worse
+        than in the events of the nominal samples used in the official analysis/publication
+        marked below as data set options "1" and "2".
+        1-kpi      Nominal MC resolution sample and data for channel D*+ -> D0 pi+; D0 -> K- pi+
+        2-k3pi     Nominal MC resolution sample and data for channel D*+ -> D0 pi+; D0 -> K- pi+ pi- pi+"""
+    )
+    parser.add_argument(
+        "--mode",
+        type=int,
+        default=0,
+        help="Program mode: 0-unbinned, 1-binned, 2-binned chisq",
+    )
+    parser.add_argument(
+        "--data", type=int, default=0, help="Dataset: 0-simple, 1-kpi, 2-k3pi"
+    )
+    parser.add_argument(
+        "--reduce", type=int, default=1, help="Load every X line of data"
+    )
+    args = parser.parse_args()
+    main(args.mode, args.data, args.reduce)

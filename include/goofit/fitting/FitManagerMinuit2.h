@@ -1,7 +1,8 @@
 #pragma once
 
 #include <Minuit2/FunctionMinimum.h>
-#include <Minuit2/MnStrategy.h>
+#include <Minuit2/MnScan.h>
+
 #include <memory>
 
 #include <goofit/GlobalCudaDefines.h>
@@ -25,16 +26,18 @@ class FitManagerMinuit2 {
     FitManagerMinuit2(PdfBase *dat);
 
     /// This runs the fit
-    ROOT::Minuit2::FunctionMinimum fit();
+    auto fit() -> ROOT::Minuit2::FunctionMinimum;
 
     /// Set the maximum number of calls. 0 for Minuit2 default.
     void setMaxCalls(unsigned int max_calls = 0) { maxfcn_ = max_calls; }
 
     /// Get a pointer to the params
-    Params *getParams() { return &upar_; }
+    auto getParams() -> Params * { return &upar_; }
 
     /// Get a pointer to the fcn
-    FCN *getFCN() { return &fcn_; }
+    auto getFCN() -> FCN * { return &fcn_; }
+
+    ROOT::Minuit2::MnScan getMnScan();
 
     /// Check to see if fit is valid
     operator bool() const { return retval_ == FitErrors::Valid; }
@@ -46,7 +49,13 @@ class FitManagerMinuit2 {
     void setVerbosity(int value) { verbosity = value; }
 
     /// Get the fitting verbosity
-    int getVerbosity() const { return verbosity; }
+    auto getVerbosity() const -> int { return verbosity; }
+
+    // Get the minos errors
+    std::vector<std::pair<double, double>> getMinosErrors() const { return minos_errors; }
+
+    // Run Minos error calculation
+    void setMinos(bool minos_flag = 1) { minos = minos_flag; }
 
     void setTolerance(double tolerance){ tolerance_=tolerance;}
 
@@ -69,11 +78,7 @@ class FitManagerMinuit2 {
     unsigned int maxfcn_{0};
     FitErrors retval_{FitErrors::NotRun};
     int verbosity{3};
-    double tolerance_{0.1};
-    TRandom3 rnd;
-    Minuit2::MnUserCovariance matCov;
-    MatrixXd* sqrtCov;
-    std::vector<VectorXd> samples;
-    PdfBase *pdfPointer;
+    std::vector<std::pair<double, double>> minos_errors;
+    bool minos{0};
 };
 } // namespace GooFit
