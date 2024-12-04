@@ -69,6 +69,7 @@ if(ROOT_FOUND)
     add_subdirectory(simpleFit)
     add_subdirectory(TDDP4)
     add_subdirectory(zachFit)
+    add_subdirectory(PlotDalitzPDF)
 endif()
 
 # Root not required
