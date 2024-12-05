@@ -138,7 +138,7 @@ std::vector <std::vector<double>> FitManagerMinuit2::printParams(std::string pat
 	vec_phi.clear(); vec_phi_err.clear();
 	std::cout << "free parameter resonance: " << floatVarVal.size()/2 << std::endl;
 
-	std::cout << std::fixed << std::setprecision(8);
+	//std::cout << std::fixed << std::setprecision(8);
 	std::cout << "                      Magnitude            Phase   " << std::endl;
 
 	for(int i = 0; i < floatVarVal.size(); i+=2){

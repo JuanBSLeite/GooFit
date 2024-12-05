@@ -272,7 +272,7 @@ __host__ TddpPdf::TddpPdf(std::string n,
     decayConstants[1] = decayInfo.daug1Mass;
     decayConstants[2] = decayInfo.daug2Mass;
     decayConstants[3] = decayInfo.daug3Mass;
-    decayConstants[4] = decayInfo.meson_radius;
+    decayConstants[4] = decayInfo.daug_meson_radius;
     MEMCPY_TO_SYMBOL(
         functorConstants, decayConstants, 6 * sizeof(fptype), cIndex * sizeof(fptype), cudaMemcpyHostToDevice);
 
@@ -369,7 +369,7 @@ __host__ TddpPdf::TddpPdf(std::string n,
     decayConstants[1] = decayInfo.daug1Mass;
     decayConstants[2] = decayInfo.daug2Mass;
     decayConstants[3] = decayInfo.daug3Mass;
-    decayConstants[4] = decayInfo.meson_radius;
+    decayConstants[4] = decayInfo.daug_meson_radius;
     MEMCPY_TO_SYMBOL(
         functorConstants, decayConstants, 8 * sizeof(fptype), cIndex * sizeof(fptype), cudaMemcpyHostToDevice);
 

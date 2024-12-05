@@ -68,7 +68,8 @@ DalitzPlotPdf *makeSignalPdf(Observable m12, Observable m13, EventNumber eventNu
     dtop0pp.daug1Mass    = piPlusMass;
     dtop0pp.daug2Mass    = piPlusMass;
     dtop0pp.daug3Mass    = piPlusMass;
-    dtop0pp.meson_radius = 1.5;
+    dtop0pp.daug_meson_radius = 1.5;
+    dtop0pp.mother_meson_radius = 5.0;
 
     ResonancePdf *rhop = new Resonances::RBW(
         "rhop", Variable("rhop_amp_real", 1), Variable("rhop_amp_imag", 0), fixedRhoMass, fixedRhoWidth, 1, PAIR_13,false);

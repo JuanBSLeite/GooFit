@@ -183,7 +183,8 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
     auto c_daug1Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 1]);
     auto c_daug2Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 2]);
     auto c_daug3Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 3]);
-    auto c_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
+    auto c_daug_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
+    auto c_mother_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 5]);
 
     auto m0          = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
     auto reswidth           = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
@@ -209,7 +210,7 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
         fptype resmass2 = POW2(resmass);
         fptype q  = Momentum(m,m1,m2);
         fptype q0 = Momentum(resmass,m1,m2);
-        fptype BWFactors_Res = BWFactors(q,q0,spin,c_meson_radius);
+        fptype BWFactors_Res = BWFactors(q,q0,spin,c_daug_meson_radius);
 
         fptype qD = 1.;
         fptype qD0 = 1.;
@@ -222,7 +223,7 @@ __device__ fpcomplex plainBW(fptype m12, fptype m13, fptype m23, unsigned int *i
                 qD0 = MomentumParent(c_motherMass,m3,resmass);
         }
         
-	fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
+	fptype BWFactors_D = BWFactors(qD,qD0,spin,c_mother_meson_radius);
         fptype gamma = Gamma(m,resmass,reswidth,q,q0,BWFactors_Res,spin);
 
         // RBW evaluation
@@ -316,7 +317,8 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
     fptype c_daug1Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 1]);
     fptype c_daug2Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 2]);
     fptype c_daug3Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 3]);
-    fptype c_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
+    fptype c_daug_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
+    fptype c_mother_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 5]);
 
     fptype m0            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
     fptype reswidth           = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
@@ -341,7 +343,7 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
         fptype resmass2 = POW2(resmass);
         fptype q  = Momentum(m,m1,m2);
         fptype q0 = Momentum(resmass,m1,m2);
-        fptype BWFactors_Res = BWFactors(q,q0,spin,c_meson_radius);
+        fptype BWFactors_Res = BWFactors(q,q0,spin,c_daug_meson_radius);
 
         fptype qD = 1.;
         fptype qD0 = 1.;
@@ -354,7 +356,7 @@ __device__ fpcomplex gouSak(fptype m12, fptype m13, fptype m23, unsigned int *in
                 qD0 = MomentumParent(c_motherMass,m3,resmass);
         }
         
-	fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
+	fptype BWFactors_D = BWFactors(qD,qD0,spin,c_mother_meson_radius);
 
         fptype gamma = Gamma(m,resmass,reswidth,q,q0,BWFactors_Res,spin);
         
@@ -391,7 +393,8 @@ __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned in
     fptype c_daug1Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 1]);
     fptype c_daug2Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 2]);
     fptype c_daug3Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 3]);
-    fptype c_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
+    fptype c_daug_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
+    fptype c_mother_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 5]);
 
     fptype real            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
     fptype img           = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
@@ -434,11 +437,11 @@ __device__ fpcomplex RhoOmegaMix(fptype m12, fptype m13, fptype m23, unsigned in
 
         fptype q  = Momentum(m,m1,m2);
         fptype q0 = Momentum(rho_mass,m1,m2);
-        fptype BWFactors_Res = BWFactors(q,q0,spin,c_meson_radius);
+        fptype BWFactors_Res = BWFactors(q,q0,spin,c_daug_meson_radius);
 
         fptype qD = Momentum(c_motherMass,m,m3);
         fptype qD0 = Momentum(c_motherMass,rho_mass,m3);
-        fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
+        fptype BWFactors_D = BWFactors(qD,qD0,spin,c_mother_meson_radius);
 
         fptype gamma = Gamma(m,rho_mass,rho_width,q,q0,BWFactors_Res,spin);
 
@@ -477,6 +480,7 @@ __device__ fpcomplex lass(fptype m12, fptype m13, fptype m23, unsigned int *indi
     fptype m2    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 2]);
     fptype m3    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 3]);
     fptype meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
+    fptype mother_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 5]);
 
     fptype resmass            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
     fptype reswidth           = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
@@ -492,7 +496,7 @@ __device__ fpcomplex lass(fptype m12, fptype m13, fptype m23, unsigned int *indi
 
     fptype qD = Momentum(motherMass,m,m3);
     fptype qD0 = Momentum(motherMass,resmass,m3);
-    fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
+    fptype BWFactors_D = BWFactors(qD,qD0,spin,mother_radius);
 
     fptype g = Gamma(m,resmass,reswidth,q,q0,BWFactors_Res,spin);
     
@@ -831,7 +835,8 @@ __device__ fpcomplex voigtian(fptype m12, fptype m13, fptype m23, unsigned int *
     auto c_daug1Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 1]);
     auto c_daug2Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 2]);
     auto c_daug3Mass    = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 3]);
-    auto c_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
+    auto c_daug_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 4]);
+    auto c_mother_meson_radius = RO_CACHE(functorConstants[RO_CACHE(indices[1]) + 5]);
 
     fptype mass            = RO_CACHE(cudaArray[RO_CACHE(indices[2])]);
     fptype sigma           = RO_CACHE(cudaArray[RO_CACHE(indices[3])]);
@@ -862,7 +867,7 @@ __device__ fpcomplex voigtian(fptype m12, fptype m13, fptype m23, unsigned int *
             fptype resmass2 = POW2(resmass);
             fptype q  = Momentum(m,m1,m2);
             fptype q0 = Momentum(resmass,m1,m2);
-            fptype BWFactors_Res = BWFactors(q,q0,spin,c_meson_radius);
+            fptype BWFactors_Res = BWFactors(q,q0,spin,c_daug_meson_radius);
 
             fptype qD = 1.;
             fptype qD0 = 1.;
@@ -875,7 +880,7 @@ __device__ fpcomplex voigtian(fptype m12, fptype m13, fptype m23, unsigned int *
                     qD0 = MomentumParent(c_motherMass,m3,resmass);
             }
         
-	        fptype BWFactors_D = BWFactors(qD,qD0,spin,5.);
+	        fptype BWFactors_D = BWFactors(qD,qD0,spin,c_mother_meson_radius);
             fptype gamma = Gamma(m,resmass,width,q,q0,BWFactors_Res,spin);
 
             // RBW evaluation

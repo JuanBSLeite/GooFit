@@ -140,7 +140,8 @@ namespace GooFit {
 			  decayConstants[1] = decayInfo.daug1Mass;
 			  decayConstants[2] = decayInfo.daug2Mass;
 			  decayConstants[3] = decayInfo.daug3Mass;
-			  decayConstants[4] = decayInfo.meson_radius;
+			  decayConstants[4] = decayInfo.daug_meson_radius;
+	          decayConstants[5] = decayInfo.mother_meson_radius;
 			  MEMCPY_TO_SYMBOL(
 					  functorConstants, decayConstants, 5 * sizeof(fptype), cIndex * sizeof(fptype), cudaMemcpyHostToDevice);
 
