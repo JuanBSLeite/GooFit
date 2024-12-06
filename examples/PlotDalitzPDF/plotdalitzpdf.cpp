@@ -78,7 +78,7 @@ DalitzPlotPdf *makeSignalPdf(Observable m12, Observable m13, EventNumber eventNu
        "f0980", Variable("f0980_amp_real", 0), Variable("f0980_amp_imag", 1), Variable("f0_mass",0.990), Variable("f0_width",0.05), 0, PAIR_13,false);
 
     ResonancePdf *f01370 = new Resonances::RBW(
-      "f01370", Variable("f01370_amp_real", 0), Variable("f01370_amp_imag", 1), Variable("f0_mass",1.370), Variable("f0_width",0.1), 0, PAIR_13,false);
+      "f01370", Variable("f01370_amp_real", 1), Variable("f01370_amp_imag", 0), Variable("f0_mass",1.370), Variable("f0_width",0.1), 0, PAIR_13,false);
 
 
     dtop0pp.resonances.push_back(rhop);
@@ -124,17 +124,15 @@ public:
             fpcomplex coef(r->get_amp_real(),r->get_amp_img());
             switch(_pair) {
                 case PAIR_12:
-                    evalR += getResonanceAmplitude(x[0],_m13,_m23, r->getFunctionIndex(), r->getParameterIndex());
+                    evalR += getResonanceAmplitude(x[0],_m13,_m23, r->getFunctionIndex(), r->getParameterIndex())*coef;
                     break;
                 case PAIR_13:
-                    evalR += getResonanceAmplitude(_m12,x[0],_m23, r->getFunctionIndex(), r->getParameterIndex());
+                    evalR += getResonanceAmplitude(_m12,x[0],_m23, r->getFunctionIndex(), r->getParameterIndex())*coef;
                     break;
                 case PAIR_23:
-                    evalR += getResonanceAmplitude(_m12,_m13,x[0], r->getFunctionIndex(), r->getParameterIndex());
+                    evalR += getResonanceAmplitude(_m12,_m13,x[0], r->getFunctionIndex(), r->getParameterIndex())*coef;
                     break;
             }
-
-            evalR *=coef;
         }
 
         if(_ismag) {
