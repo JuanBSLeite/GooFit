@@ -243,6 +243,7 @@ int main(int argc, char **argv) {
     c1.SaveAs("phs2dDP.png");
     fphs2dhist->Draw("Surf");
     c1.SaveAs("phs2dDPSurf.png");
+    c1.SaveAs("phs2dDPSurf.root");
 
     auto s12phsproj = static_cast<TH1D*>(fphs2dhist->ProjectionX("s12"));
     s12phsproj->Draw("Hist");
