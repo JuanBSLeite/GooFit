@@ -160,9 +160,10 @@ private:
 int main(int argc, char **argv) {
 
     GooFit::setROOTStyle();
-    auto signal = makeSignalPdf(m12,m13,eventNumber,0);
     m12.setNumBins(100);
     m13.setNumBins(100);
+    auto signal = makeSignalPdf(m12,m13,eventNumber,0);
+
     PDF_Plotter abspdf(0.7758*0.7758,0,0,PAIR_13,true);
     abspdf.setDalitz(signal);
 
@@ -183,6 +184,7 @@ int main(int argc, char **argv) {
     fphs.Draw("L");
     c.SaveAs("test.png");
 
+    // These are the most correct since I'm including the allowed kinematic region
     TCanvas c1;
     TF2 fmag2d("PDF Mag",
         [&,signal](double* x, double *p) {
