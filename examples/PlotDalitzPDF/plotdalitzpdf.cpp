@@ -30,7 +30,10 @@
 
 //root stuff
 #include "TF1.h"
+#include "TF2.h"
 #include "TCanvas.h"
+#include "TGraph2D.h"
+#include "TGraph.h"
 #include "goofit/FitControl.h"
 
 using namespace std;
@@ -72,13 +75,13 @@ DalitzPlotPdf *makeSignalPdf(Observable m12, Observable m13, EventNumber eventNu
     dtop0pp.mother_meson_radius = 5.0;
 
     ResonancePdf *rhop = new Resonances::RBW(
-        "rhop", Variable("rhop_amp_real", 1), Variable("rhop_amp_imag", 0), fixedRhoMass, fixedRhoWidth, 1, PAIR_13,false);
+        "rhop", Variable("rhop_amp_real", 1), Variable("rhop_amp_imag", 0), fixedRhoMass, fixedRhoWidth, 1, PAIR_13,true);
 
     ResonancePdf *f0980 = new Resonances::RBW(
-       "f0980", Variable("f0980_amp_real", 0), Variable("f0980_amp_imag", 1), Variable("f0_mass",0.990), Variable("f0_width",0.05), 0, PAIR_13,false);
+       "f0980", Variable("f0980_amp_real", 0), Variable("f0980_amp_imag", 1), Variable("f0_mass",0.990), Variable("f0_width",0.05), 0, PAIR_13,true);
 
     ResonancePdf *f01370 = new Resonances::RBW(
-      "f01370", Variable("f01370_amp_real", 1), Variable("f01370_amp_imag", 0), Variable("f0_mass",1.370), Variable("f0_width",0.1), 0, PAIR_13,false);
+      "f01370", Variable("f01370_amp_real", 1), Variable("f01370_amp_imag", 0), Variable("f0_mass",1.370), Variable("f0_width",0.1), 0, PAIR_13,true);
 
 
     dtop0pp.resonances.push_back(rhop);
@@ -153,6 +156,7 @@ private:
 };
 
 
+
 int main(int argc, char **argv) {
 
     GooFit::setROOTStyle();
@@ -178,6 +182,76 @@ int main(int argc, char **argv) {
     fphs.GetYaxis()->SetTitle("PDF Phs (deg)");
     fphs.Draw("L");
     c.SaveAs("test.png");
+
+    TCanvas c1;
+    TF2 fmag2d("PDF Mag",
+        [&,signal](double* x, double *p) {
+            auto dtoppp = signal->getDecayInfo();
+            auto resonances = dtoppp.resonances;
+            fpcomplex  evalR{0.,0.};
+            for(auto r: resonances) {
+                auto pars = r->getParameters();
+                fpcomplex coef(r->get_amp_real(),r->get_amp_img());
+                if(inDalitz(x[0],x[1],dtoppp.motherMass,
+                    dtoppp.daug1Mass,dtoppp.daug2Mass,dtoppp.daug3Mass)) {
+                    evalR += getResonanceAmplitude(x[0],x[1],0., r->getFunctionIndex(), r->getParameterIndex())*coef;
+                }
+            }
+            return static_cast<double>(thrust::abs(evalR));
+        }
+        ,
+        4*piPlusMass*piPlusMass, pow(_mD0-piPlusMass,2),
+        4*piPlusMass*piPlusMass, pow(_mD0-piPlusMass,2),
+        0
+        );
+
+    TF2 fphs2d("PDF Phase",
+        [&,signal](double* x, double *p) {
+            auto dtoppp = signal->getDecayInfo();
+            auto resonances = dtoppp.resonances;
+            fpcomplex  evalR{0.,0.};
+            for(auto r: resonances) {
+                auto pars = r->getParameters();
+                fpcomplex coef(r->get_amp_real(),r->get_amp_img());
+                if(inDalitz(x[0],x[1],dtoppp.motherMass,
+                    dtoppp.daug1Mass,dtoppp.daug2Mass,dtoppp.daug3Mass)) {
+                    evalR += getResonanceAmplitude(x[0],x[1],0., r->getFunctionIndex(), r->getParameterIndex())*coef;
+                }
+            }
+            return static_cast<double>(thrust::arg(evalR)*180./M_PI);
+        }
+        ,
+        4*piPlusMass*piPlusMass, pow(_mD0-piPlusMass,2),
+        4*piPlusMass*piPlusMass, pow(_mD0-piPlusMass,2),
+        0
+        );
+
+    auto fmag2dhist = static_cast<TH2D*>(fmag2d.GetHistogram());
+    fmag2dhist->Draw("colz");
+    c1.SaveAs("mag2dDP.png");
+
+    auto s12proj = static_cast<TH1D*>(fmag2dhist->ProjectionX("s12"));
+    s12proj->Draw("Hist");
+    c1.SaveAs("s12proj.png");
+
+    auto s13proj = static_cast<TH1D*>(fmag2dhist->ProjectionY("s13"));
+    s13proj->Draw("Hist");
+    c1.SaveAs("s13proj.png");
+
+    auto fphs2dhist = static_cast<TH2D*>(fphs2d.GetHistogram());
+    fphs2dhist->Draw("colz");
+    c1.SaveAs("phs2dDP.png");
+    fphs2dhist->Draw("Surf");
+    c1.SaveAs("phs2dDPSurf.png");
+
+    auto s12phsproj = static_cast<TH1D*>(fphs2dhist->ProjectionX("s12"));
+    s12phsproj->Draw("Hist");
+    c1.SaveAs("s12phsproj.png");
+
+    auto s13phsproj = static_cast<TH1D*>(fphs2dhist->ProjectionY("s13"));
+    s13phsproj->Draw("Hist");
+    c1.SaveAs("s13phsproj.png");
+
 
     return 0;
 }
